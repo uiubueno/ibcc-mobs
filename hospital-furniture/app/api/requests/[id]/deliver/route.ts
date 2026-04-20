@@ -11,30 +11,58 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   }
 
   try {
-    const { furnitureId } = await req.json()
+    const { furnitureId, status } = await req.json()
 
-    // Usamos uma transação para garantir que ou muda tudo ou não muda nada
-    const result = await prisma.$transaction(async (tx) => {
-      // 1. Atualiza a solicitação
-      const request = await tx.request.update({
+    // 1. TRIAGEM (Aprovar ou Recusar)
+    if (status === 'RECUSADO' || status === 'EM_SEPARACAO') {
+      const request = await prisma.request.update({
         where: { id },
-        data: { 
-          status: 'ENTREGUE',
-          furnitureId: furnitureId
-        }
+        data: { status: status }
+      })
+      return NextResponse.json(request)
+    }
+
+    // 2. ENTREGA FINAL (Dar Baixa no Estoque)
+    if (furnitureId) {
+      const result = await prisma.$transaction(async (tx) => {
+        // Atualiza a solicitação para ENTREGUE
+        const request = await tx.request.update({
+          where: { id },
+          data: { 
+            status: 'ENTREGUE',
+            furnitureId: furnitureId
+          }
+        })
+
+        // Atualiza o móvel: muda o setor e DÁ A BAIXA na quantidade
+        await tx.furniture.update({
+          where: { id: furnitureId },
+          data: { 
+            location: request.sector,
+            quantity: { decrement: request.quantity } // Aqui a mágica da baixa acontece!
+          }
+        })
+
+        // BÔNUS: Registra a movimentação no histórico do hospital
+        await tx.movement.create({
+          data: {
+            furnitureId: furnitureId,
+            type: 'TRANSFERENCIA', // ou SAIDA, conforme sua preferência
+            quantity: request.quantity,
+            description: `Triagem aprovada. Item entregue para o setor: ${request.sector}`
+          }
+        })
+
+        return request
       })
 
-      // 2. Atualiza o móvel (muda a localização para o setor que pediu)
-      await tx.furniture.update({
-        where: { id: furnitureId },
-        data: { location: request.sector }
-      })
+      return NextResponse.json(result)
+    }
 
-      return request
-    })
+    return NextResponse.json({ error: 'Dados incompletos para a ação' }, { status: 400 })
 
-    return NextResponse.json(result)
   } catch (error) {
-    return NextResponse.json({ error: 'Erro ao entregar item' }, { status: 500 })
+    console.error(error)
+    return NextResponse.json({ error: 'Erro ao processar a solicitação' }, { status: 500 })
   }
 }

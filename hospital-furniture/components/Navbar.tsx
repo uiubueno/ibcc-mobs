@@ -11,7 +11,9 @@ import {
   Wrench, 
   LayoutDashboard, 
   LogOut,
-  Hospital
+  Hospital,
+  Users,
+  ClipboardList 
 } from 'lucide-react'
 
 export function Navbar({ userName, userRole }: { userName?: string | null, userRole?: string | null }) {
@@ -41,7 +43,10 @@ export function Navbar({ userName, userRole }: { userName?: string | null, userR
       <div className="max-w-[1600px] mx-auto flex items-center justify-between gap-8">
         
         {/* LOGO */}
-        <Link href="/" className="flex items-center gap-3 group shrink-0">
+        <Link 
+          href={userRole === 'ADMIN' ? "/" : "/solicitar"} 
+          className="flex items-center gap-3 group shrink-0"
+        >
           <div className="bg-blue-600 p-2 rounded-xl group-hover:rotate-12 transition-transform">
             <Hospital className="w-6 h-6 text-white" />
           </div>
@@ -53,8 +58,10 @@ export function Navbar({ userName, userRole }: { userName?: string | null, userR
 
         {/* NAVEGAÇÃO CENTRAL */}
         <div className="hidden xl:flex items-center gap-1 bg-slate-900/50 p-1 rounded-xl border border-slate-800/50">
-          <NavLink href="/" icon={Home}>Início</NavLink>
+          {userRole === 'ADMIN' && <NavLink href="/" icon={Home}>Início</NavLink>}
+          
           <NavLink href="/solicitar" icon={PlusCircle}>Solicitar</NavLink>
+          <NavLink href="/meus-pedidos" icon={ClipboardList}>Acompanhamento</NavLink>
           
           {userRole === 'ADMIN' && (
             <>
@@ -62,13 +69,16 @@ export function Navbar({ userName, userRole }: { userName?: string | null, userR
               <NavLink href="/admin/furniture" icon={Package}>Estoque</NavLink>
               <NavLink href="/admin/maintenance" icon={Wrench}>Manutenção</NavLink>
               <NavLink href="/admin/requests" icon={LayoutDashboard}>Painel</NavLink>
+              <NavLink href="/admin/usuarios" icon={Users}>Usuários</NavLink>
             </>
           )}
         </div>
 
         {/* BUSCA E USUÁRIO */}
         <div className="flex items-center gap-6 grow justify-end">
-          <GlobalSearch />
+          
+          {/* TRAVA DE SEGURANÇA NA BUSCA: Só aparece para ADMIN */}
+          {userRole === 'ADMIN' && <GlobalSearch />}
 
           <div className="flex items-center gap-4 border-l border-slate-800 pl-6 shrink-0">
             <div className="flex flex-col text-right hidden sm:flex">

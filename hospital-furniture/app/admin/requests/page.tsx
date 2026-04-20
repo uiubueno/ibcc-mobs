@@ -10,7 +10,10 @@ import {
   Truck, 
   Search,
   ArrowRight,
-  PackageSearch
+  PackageSearch,
+  Check,
+  XCircle,
+  Settings2
 } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -44,12 +47,52 @@ export default function AdminRequestsPage() {
 
   useEffect(() => { fetchData() }, [])
 
+  // Nova função: Apenas aprova (muda status para EM_SEPARACAO)
+  const handleApprove = async (id: string) => {
+    toast.promise(
+      fetch(`/api/requests/${id}/deliver`, { 
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: 'EM_SEPARACAO' }) 
+      }),
+      {
+        loading: 'Aprovando solicitação...',
+        success: () => {
+          fetchData()
+          return 'Solicitação aprovada. Movida para a fila de Separação!'
+        },
+        error: 'Erro ao aprovar solicitação.'
+      }
+    )
+  }
+
+  // Nova função: Apenas recusa (muda status para RECUSADO)
+  const handleReject = async (id: string) => {
+    if (!confirm("Tem certeza que deseja recusar essa solicitação?")) return;
+
+    toast.promise(
+      fetch(`/api/requests/${id}/deliver`, { 
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: 'RECUSADO' })
+      }),
+      {
+        loading: 'Recusando solicitação...',
+        success: () => {
+          fetchData()
+          return 'Solicitação recusada e removida da fila.'
+        },
+        error: 'Erro ao recusar solicitação.'
+      }
+    )
+  }
+
   const handleDeliver = async (furnitureId: string) => {
     toast.promise(
       fetch(`/api/requests/${selectedRequest.id}/deliver`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ furnitureId })
+        body: JSON.stringify({ furnitureId, status: 'ENTREGUE' }) 
       }),
       {
         loading: 'Vinculando patrimônio e atualizando setor...',
@@ -64,64 +107,119 @@ export default function AdminRequestsPage() {
   }
 
   const pendingRequests = requests.filter(r => r.status === 'PENDENTE')
+  const separationRequests = requests.filter(r => r.status === 'EM_SEPARACAO')
   const completedRequests = requests.filter(r => r.status === 'ENTREGUE')
 
   return (
     <div className="p-8 max-w-7xl mx-auto space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
       
-      <header className="flex justify-between items-end">
+      <header className="flex justify-between items-end border-b pb-6">
         <div>
           <h1 className="text-3xl font-black text-slate-900 tracking-tight">Painel de Atendimento</h1>
-          <p className="text-slate-500 font-medium italic">Gestão de Fluxo Hospitalar IBCC</p>
+          <p className="text-slate-500 font-medium italic mt-1">Gestão de Fluxo Hospitalar IBCC</p>
         </div>
-        <div className="flex gap-4">
-          <Badge variant="outline" className="bg-amber-50 text-amber-700 border-amber-200 py-2 px-4 rounded-lg font-bold">
+        <div className="flex gap-2">
+          <Badge variant="outline" className="bg-amber-50 text-amber-700 border-amber-200 py-2 px-4 rounded-lg font-bold shadow-sm">
             {pendingRequests.length} PENDENTES
           </Badge>
-          <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200 py-2 px-4 rounded-lg font-bold">
+          <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200 py-2 px-4 rounded-lg font-bold shadow-sm">
+            {separationRequests.length} EM SEPARAÇÃO
+          </Badge>
+          <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200 py-2 px-4 rounded-lg font-bold shadow-sm">
             {completedRequests.length} ENTREGUES
           </Badge>
         </div>
       </header>
 
-      <div className="grid grid-cols-1 lg:grid-cols-1 gap-8">
+      <div className="grid grid-cols-1 lg:grid-cols-1 gap-10">
         
-        {/* SOLICITAÇÕES PENDENTES */}
+        {/* PASSO 1: TRIAGEM (PENDENTES) */}
         <section className="space-y-4">
-          <h2 className="text-sm font-black text-slate-400 uppercase tracking-[0.2em] flex items-center gap-2">
-            <Clock className="w-4 h-4" /> Aguardando Atendimento
-          </h2>
+          <div className="flex items-center justify-between">
+            <h2 className="text-sm font-black text-slate-500 uppercase tracking-[0.2em] flex items-center gap-2">
+              <Clock className="w-4 h-4 text-amber-500" /> Aguardando Análise (Triagem)
+            </h2>
+            <span className="text-xs text-slate-400 font-medium">Aceite ou recuse a necessidade do setor.</span>
+          </div>
           
           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
             {pendingRequests.length === 0 && (
-              <Card className="col-span-full border-dashed p-12 flex flex-col items-center justify-center bg-slate-50/50">
-                <CheckCircle2 className="w-12 h-12 text-green-500/20 mb-4" />
-                <p className="text-slate-400 font-bold italic">Nenhuma solicitação pendente. Tudo em ordem!</p>
+              <Card className="col-span-full border-dashed p-10 flex flex-col items-center justify-center bg-slate-50/50">
+                <CheckCircle2 className="w-8 h-8 text-slate-300 mb-2" />
+                <p className="text-slate-400 font-bold italic text-sm">Nenhuma solicitação aguardando análise.</p>
               </Card>
             )}
 
             {pendingRequests.map((req) => (
-              <Card key={req.id} className="group hover:shadow-2xl transition-all duration-300 border-l-4 border-l-amber-500">
-                <CardContent className="p-6 space-y-4">
+              <Card key={req.id} className="group hover:shadow-lg transition-all duration-300 border-l-4 border-l-amber-400 border-t-0 border-b-0 border-r-0 rounded-l-none">
+                <CardContent className="p-5 space-y-4">
                   <div className="flex justify-between items-start">
                     <div>
-                      <Badge className="bg-slate-100 text-slate-600 mb-2 uppercase text-[9px] font-black">{req.type}</Badge>
-                      <h3 className="font-black text-xl text-slate-900 leading-tight">{req.sector}</h3>
-                    </div>
-                    <div className="bg-amber-100 p-2 rounded-lg text-amber-600">
-                      <Truck className="w-5 h-5" />
+                      <Badge className="bg-amber-100 text-amber-700 mb-2 uppercase text-[9px] font-black">{req.type}</Badge>
+                      <h3 className="font-black text-lg text-slate-900 leading-tight">{req.sector}</h3>
                     </div>
                   </div>
                   
-                  <p className="text-sm text-slate-500 bg-slate-50 p-3 rounded-lg border border-slate-100 italic">
+                  <p className="text-sm text-slate-600 bg-slate-50 p-3 rounded-lg border border-slate-100 italic">
                     "{req.reason}"
                   </p>
 
+                  <div className="flex gap-2 pt-2">
+                    <Button 
+                      onClick={() => handleReject(req.id)}
+                      variant="outline"
+                      className="flex-1 text-red-600 hover:bg-red-50 hover:text-red-700 border-red-200"
+                    >
+                      <XCircle className="w-4 h-4 mr-2" /> Recusar
+                    </Button>
+                    <Button 
+                      onClick={() => handleApprove(req.id)}
+                      className="flex-1 bg-slate-900 hover:bg-slate-800 text-white"
+                    >
+                      <Check className="w-4 h-4 mr-2 text-green-400" /> Aprovar
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        </section>
+
+        {/* PASSO 2: SEPARAÇÃO E ENTREGA */}
+        <section className="space-y-4">
+          <div className="flex items-center justify-between">
+            <h2 className="text-sm font-black text-slate-500 uppercase tracking-[0.2em] flex items-center gap-2">
+              <Settings2 className="w-4 h-4 text-blue-500" /> Fila de Separação (Aprovados)
+            </h2>
+            <span className="text-xs text-slate-400 font-medium">Vincule o patrimônio para despachar.</span>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+            {separationRequests.length === 0 && (
+              <Card className="col-span-full border-dashed p-10 flex flex-col items-center justify-center bg-slate-50/50">
+                <PackageSearch className="w-8 h-8 text-slate-300 mb-2" />
+                <p className="text-slate-400 font-bold italic text-sm">Fila de separação vazia.</p>
+              </Card>
+            )}
+
+            {separationRequests.map((req) => (
+              <Card key={req.id} className="group hover:shadow-xl transition-all duration-300 border-l-4 border-l-blue-500 bg-blue-50/30">
+                <CardContent className="p-5 space-y-4">
+                  <div className="flex justify-between items-start">
+                    <div>
+                      <Badge className="bg-blue-100 text-blue-700 mb-2 uppercase text-[9px] font-black">{req.type}</Badge>
+                      <h3 className="font-black text-xl text-slate-900 leading-tight">{req.sector}</h3>
+                    </div>
+                    <div className="bg-blue-100 p-2 rounded-lg text-blue-600">
+                      <Truck className="w-5 h-5" />
+                    </div>
+                  </div>
+
                   <Button 
                     onClick={() => { setSelectedRequest(req); setOpenDeliver(true); }}
-                    className="w-full bg-slate-900 hover:bg-blue-600 text-white font-bold transition-colors group"
+                    className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold transition-colors group shadow-md shadow-blue-500/20"
                   >
-                    Atender Pedido
+                    Vincular e Entregar
                     <ArrowRight className="w-4 h-4 ml-2 group-hover:translate-x-1 transition-transform" />
                   </Button>
                 </CardContent>
@@ -130,8 +228,9 @@ export default function AdminRequestsPage() {
           </div>
         </section>
 
-        {/* HISTÓRICO RECENTE */}
-        <section className="space-y-4 pt-8 border-t border-slate-200">
+
+        {/* PASSO 3: HISTÓRICO RECENTE */}
+        <section className="space-y-4 pt-4">
           <h2 className="text-sm font-black text-slate-400 uppercase tracking-[0.2em] flex items-center gap-2">
             <CheckCircle2 className="w-4 h-4" /> Entregas Recentes
           </h2>
@@ -171,7 +270,6 @@ export default function AdminRequestsPage() {
         </section>
       </div>
 
-      {/* MODAL DE SELEÇÃO DE PATRIMÔNIO (O SEGREDO DO SUCESSO) */}
       <Dialog open={openDeliver} onOpenChange={setOpenDeliver}>
         <DialogContent className="max-w-2xl">
           <DialogHeader>
@@ -192,7 +290,7 @@ export default function AdminRequestsPage() {
 
             <div className="grid grid-cols-1 gap-2 max-h-[350px] overflow-y-auto pr-2">
               {inventory
-                .filter(i => i.type === selectedRequest?.type && (i.status === 'NOVO' || i.status === 'USADO'))
+                .filter(i => i.type === selectedRequest?.type && (i.status === 'NOVO' || i.status === 'USADO') && i.quantity > 0)
                 .map(item => (
                   <button
                     key={item.id}

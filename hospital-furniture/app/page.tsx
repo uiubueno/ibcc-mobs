@@ -1,5 +1,6 @@
 import { Suspense } from 'react'
 import { auth } from '@/lib/auth'
+import { redirect } from 'next/navigation' // Importação necessária para o redirecionamento
 import { prisma } from '@/lib/prisma'
 import { DashboardCharts } from '@/components/DashboardCharts'
 import { DateRangeFilter } from '@/components/DateRangeFilter'
@@ -12,10 +13,20 @@ export default async function HomePage(props: {
   searchParams: Promise<{ from?: string, to?: string }> 
 }) {
   const session = await auth()
+
+  // 1. Trava de Autenticação: Se não logou, vai pro login
+  if (!session) {
+    redirect('/login')
+  }
+
+  // 2. Trava de Permissão: Se não for ADMIN, manda pra solicitação
+  if (session.user?.role !== 'ADMIN') {
+    redirect('/solicitar')
+  }
+
   const searchParams = await props.searchParams
   const { from, to } = searchParams
 
-  // Filtro de data para o Prisma
   const dateFilter = from && to ? {
     createdAt: {
       gte: new Date(`${from}T00:00:00.000Z`),
@@ -23,17 +34,28 @@ export default async function HomePage(props: {
     }
   } : {}
 
-  // Buscas simultâneas
-  const [totalItems, lowStockItems, allRequests] = await Promise.all([
+  const [totalItems, stockByType, allRequests] = await Promise.all([
     prisma.furniture.aggregate({ _sum: { quantity: true } }),
-    prisma.furniture.findMany({ where: { quantity: { lte: 2 } }, take: 4 }),
+    
+    prisma.furniture.groupBy({ 
+      by: ['type'], 
+      _sum: { quantity: true },
+      where: { status: { in: ['NOVO', 'USADO'] } } 
+    }),
+    
     prisma.request.findMany({ 
       where: dateFilter,
       include: { furniture: true } 
     })
   ])
 
-  // Processamento de dados
+  const CRITICAL_THRESHOLD = 5;
+  
+  const lowStockItems = stockByType
+    .filter(item => (item._sum.quantity || 0) <= CRITICAL_THRESHOLD)
+    .sort((a, b) => (a._sum.quantity || 0) - (b._sum.quantity || 0))
+    .slice(0, 5)
+
   const pendingRequests = allRequests.filter(r => r.status === 'PENDENTE').length
   const deliveredRequests = allRequests.filter(r => r.status === 'ENTREGUE').length
 
@@ -65,13 +87,11 @@ export default async function HomePage(props: {
           <p className="text-slate-500 mt-2 text-lg">Olá, {session?.user?.name}. Aqui está a inteligência operacional de hoje.</p>
         </div>
         
-        {/* Suspense evita o travamento da Navbar */}
         <Suspense fallback={<div className="h-10 w-48 bg-slate-100 animate-pulse rounded-xl" />}>
           <DateRangeFilter />
         </Suspense>
       </header>
 
-      {/* Cards de KPIs (Agora com 4 colunas) */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <Card className="border-l-4 border-l-amber-500 shadow-sm">
           <CardHeader className="flex flex-row items-center justify-between pb-2">
@@ -86,7 +106,6 @@ export default async function HomePage(props: {
           </CardContent>
         </Card>
 
-        {/* NOVO CARD: ENTREGUES */}
         <Card className="border-none shadow-xl shadow-blue-500/10 bg-blue-600 text-white">
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-sm font-medium text-blue-100 uppercase">Entregues</CardTitle>
@@ -133,22 +152,26 @@ export default async function HomePage(props: {
       <Card className="border-red-100 shadow-sm">
         <CardHeader className="bg-red-50/50 flex flex-row items-center gap-2">
           <AlertTriangle className="h-5 w-5 text-red-600" />
-          <CardTitle className="text-base text-red-800">Alertas de Reposição Crítica</CardTitle>
+          <CardTitle className="text-base text-red-800">Alertas de Reposição Crítica (Estoque ≤ {CRITICAL_THRESHOLD})</CardTitle>
         </CardHeader>
         <CardContent className="p-0">
           <div className="divide-y divide-slate-100">
             {lowStockItems.length > 0 ? (
-              lowStockItems.map(item => (
-                <div key={item.id} className="p-4 flex justify-between items-center group hover:bg-slate-50 transition-colors">
+              lowStockItems.map((item, idx) => (
+                <div key={idx} className="p-4 flex justify-between items-center group hover:bg-slate-50 transition-colors">
                   <div>
-                    <p className="font-bold text-slate-800">{item.name}</p>
-                    <p className="text-xs text-slate-400 uppercase tracking-tighter">Patrimônio: {item.patrimony || 'S/N'}</p>
+                    <p className="font-bold text-slate-800 text-lg">{item.type}</p>
+                    <p className="text-[10px] text-slate-400 uppercase tracking-tighter">
+                      Atenção: Volume crítico no almoxarifado
+                    </p>
                   </div>
-                  <Badge variant="destructive" className="font-mono">{item.quantity} un</Badge>
+                  <Badge variant="destructive" className="font-mono text-sm px-3 py-1">
+                    {item._sum.quantity} disponíveis no total
+                  </Badge>
                 </div>
               ))
             ) : (
-              <p className="p-6 text-center text-slate-400 italic">Nenhum item com estoque baixo no momento.</p>
+              <p className="p-6 text-center text-slate-400 font-medium italic">Estoque saudável. Nenhum tipo de mobiliário atingiu o nível crítico.</p>
             )}
           </div>
         </CardContent>
