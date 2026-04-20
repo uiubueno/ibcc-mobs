@@ -1,13 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
+import { sendMail } from '@/lib/mail' // O "carteiro" que envia o e-mail
 
 // GET: Lista as solicitações
 export async function GET(req: NextRequest) {
   const session = await auth()
   if (!session) return NextResponse.json({ error: 'Não autorizado' }, { status: 401 })
 
-  // ADMIN vê tudo. USER vê só os próprios pedidos.
   const isAdmin = session.user?.role === 'ADMIN'
   const where = isAdmin ? {} : { userId: session.user?.id }
 
@@ -15,8 +15,8 @@ export async function GET(req: NextRequest) {
     const requestsList = await prisma.request.findMany({
       where,
       include: {
-        furniture: true, // Traz dados do móvel (se já tiver sido vinculado)
-        user: { select: { name: true, email: true } } // Nome de quem pediu
+        furniture: true,
+        user: { select: { name: true, email: true } }
       },
       orderBy: { createdAt: 'desc' }
     })
@@ -28,11 +28,10 @@ export async function GET(req: NextRequest) {
   }
 }
 
-// POST: Cria uma nova solicitação baseada no TIPO
+// POST: Cria uma nova solicitação e NOTIFICA o William
 export async function POST(req: NextRequest) {
   const session = await auth()
   
-  // Verificação de segurança da sessão
   if (!session || !session.user?.id) {
     return NextResponse.json({ error: 'Você precisa estar logado para solicitar.' }, { status: 401 })
   }
@@ -41,23 +40,47 @@ export async function POST(req: NextRequest) {
     const body = await req.json()
     const { type, sector, reason } = body
 
-    // Validação de campos obrigatórios
     if (!type || !sector || !reason) {
       return NextResponse.json({ error: 'Preencha todos os campos obrigatórios.' }, { status: 400 })
     }
 
-    // Criação da solicitação no banco
-    // O furnitureId fica nulo (null) porque o William vai escolher o item depois
     const newRequest = await prisma.request.create({
       data: {
         userId: session.user.id,
-        type: type,          // O que a enfermagem pediu (ex: "Maca")
-        sector: sector,      // Onde entregar
-        reason: reason,      // Por que pediu
-        status: 'PENDENTE',  // Status inicial
-        quantity: 1          // Valor padrão (pode ser ajustado se necessário)
+        type: type,
+        sector: sector,
+        reason: reason,
+        status: 'PENDENTE',
+        quantity: 1
       }
     })
+
+    // --- FEATURE INSANA: NOTIFICAÇÃO POR E-MAIL ---
+    // Enviando para o seu e-mail de trabalho
+    try {
+      await sendMail({
+        to: 'william.peixoto@ibcc.org.br', // Ajuste para o seu e-mail exato do trabalho
+        subject: `🚨 Nova Solicitação: ${type} - ${sector}`,
+        html: `
+          <div style="font-family: sans-serif; color: #333;">
+            <h2 style="color: #2563eb;">Nova Solicitação de Mobiliário</h2>
+            <p>O coordenador <strong>${session.user.name}</strong> acabou de abrir um chamado.</p>
+            <hr />
+            <p><strong>Item:</strong> ${type}</p>
+            <p><strong>Setor:</strong> ${sector}</p>
+            <p><strong>Motivo:</strong> "${reason}"</p>
+            <hr />
+            <a href="${process.env.NEXTAUTH_URL}/admin/requests" 
+               style="background: #2563eb; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px; font-weight: bold;">
+               Analisar no Painel
+            </a>
+          </div>
+        `
+      })
+    } catch (mailError) {
+      // Se o e-mail falhar, logamos o erro mas não travamos o pedido do usuário
+      console.error("Erro ao enviar e-mail de notificação:", mailError)
+    }
 
     return NextResponse.json(newRequest, { status: 201 })
   } catch (error) {
