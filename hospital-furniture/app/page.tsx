@@ -1,12 +1,12 @@
 import { Suspense } from 'react'
 import { auth } from '@/lib/auth'
-import { redirect } from 'next/navigation' // Importação necessária para o redirecionamento
+import { redirect } from 'next/navigation'
 import { prisma } from '@/lib/prisma'
 import { DashboardCharts } from '@/components/DashboardCharts'
 import { DateRangeFilter } from '@/components/DateRangeFilter'
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { AlertTriangle, Package, ClipboardList, ArrowRight, CheckCircle2 } from 'lucide-react'
+import { AlertTriangle, Package, ClipboardList, ArrowRight, CheckCircle2, Truck } from 'lucide-react'
 import Link from 'next/link'
 
 export default async function HomePage(props: { 
@@ -56,7 +56,9 @@ export default async function HomePage(props: {
     .sort((a, b) => (a._sum.quantity || 0) - (b._sum.quantity || 0))
     .slice(0, 5)
 
+  // Contagem de todos os status relevantes para o topo
   const pendingRequests = allRequests.filter(r => r.status === 'PENDENTE').length
+  const separationRequests = allRequests.filter(r => r.status === 'EM_SEPARACAO').length // <- Adicionada contagem aqui
   const deliveredRequests = allRequests.filter(r => r.status === 'ENTREGUE').length
 
   const statusCounts = allRequests.reduce((acc: any, req) => {
@@ -92,7 +94,10 @@ export default async function HomePage(props: {
         </Suspense>
       </header>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+      {/* Grid alterado para lg:grid-cols-5 para acomodar os 5 cards perfeitamente */}
+      <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-6">
+        
+        {/* Card 1: Pendentes */}
         <Card className="border-l-4 border-l-amber-500 shadow-sm">
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-sm font-medium text-slate-500 uppercase">Pendentes</CardTitle>
@@ -106,6 +111,19 @@ export default async function HomePage(props: {
           </CardContent>
         </Card>
 
+        {/* Card 2: Em Separação (O NOVO CARD) */}
+        <Card className="border-l-4 border-l-purple-500 shadow-sm bg-purple-50/30">
+          <CardHeader className="flex flex-row items-center justify-between pb-2">
+            <CardTitle className="text-sm font-medium text-slate-600 uppercase">Em Separação</CardTitle>
+            <Truck className="h-5 w-5 text-purple-600" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-3xl font-bold text-purple-900">{separationRequests}</div>
+            <p className="text-[10px] text-purple-600/70 mt-2 font-bold uppercase tracking-wider">Aguardando entrega</p>
+          </CardContent>
+        </Card>
+
+        {/* Card 3: Entregues */}
         <Card className="border-none shadow-xl shadow-blue-500/10 bg-blue-600 text-white">
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-sm font-medium text-blue-100 uppercase">Entregues</CardTitle>
@@ -117,6 +135,7 @@ export default async function HomePage(props: {
           </CardContent>
         </Card>
 
+        {/* Card 4: Estoque Total */}
         <Card className="border-l-4 border-l-slate-400 shadow-sm">
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-sm font-medium text-slate-500 uppercase">Estoque Total</CardTitle>
@@ -130,6 +149,7 @@ export default async function HomePage(props: {
           </CardContent>
         </Card>
 
+        {/* Card 5: Ação Rápida */}
         <Card className="bg-slate-900 text-white shadow-lg">
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-sm font-medium text-slate-300 uppercase">Ação Rápida</CardTitle>
@@ -145,6 +165,7 @@ export default async function HomePage(props: {
             </Link>
           </CardContent>
         </Card>
+        
       </div>
 
       <DashboardCharts statusData={statusData} sectorData={sectorData} />

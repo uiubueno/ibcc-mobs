@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { toast } from 'sonner'
 import { 
   Package2, 
@@ -9,13 +9,49 @@ import {
   MessageSquare, 
   CheckCircle2,
   ChevronRight,
-  Info
+  Info,
+  Search,
+  ChevronDown
 } from 'lucide-react'
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Badge } from "@/components/ui/badge"
+
+const SECTORS_IBCC = [
+  "Diretoria Executiva", "Gerencia Apoio Tecnico", "Assuntos Regulatórios", "Central de Autorizações",
+  "Recepção Imagem", "Call Center", "Recepção – TCTH", "Adm. Unidades de Internação", 
+  "Adm. Enfermagem – Centros Cirurgicos", "Adm. TCTH", "Adm. SADT", "Adm. Serviços de Hotelaria", 
+  "Adm. Serviços de Suprimentos – Farmácia", "PABX", "Central de Aquecimento", "Central de Ar Condicionado", 
+  "Almoxarifado", "Adm. U.T.I e P.A", "Departamento de Pessoal", "Recursos Humanos", 
+  "Adm. Ambulatórios/ Quimioterapia", "Assessoria Jurídica", "Controle de Acesso e Informação", 
+  "Auditoria de Contas Medicas", "Financeiro", "Custos", "Assessoria Captação Recursos", "Faturamento", 
+  "Engajamento Médico", "Contabilidade", "Adm. Engenharia/Obras", "Compras", 
+  "Adm Apoio Serviços Assistenciais", "Central de Agendamento", "Tecnologia da Informação", 
+  "Gerencia de Operações", "Gerencia de Engenharia e Manutenção", "Portaria/Segurança", 
+  "Gerencia de Praticas Assistenciais", "SESMT", "SAC – Serviço Atendimento ao Consumidor", 
+  "Arquivo e Estatística", "Centro de Estudos", "Centro de Pesquisa Clínica", 
+  "Serviço de Educação Continuada", "Unidade Pompéia", "Unidade Santana", "Unidade Ipiranga", 
+  "Unidade Granja Viana", "Recepção Internação", "Recurso de Glosas", "Departamento Comercial", 
+  "Qualidade", "Segurança Paciente", "SCIH – Serviço Controle Infecção Hosp.", "Farmácia – Quimioterapia", 
+  "Farmácia – Centro Cirúrgico", "Coordenação Administrativo Amb/Cirurg", "Coord Adm Gestão Acesso", 
+  "CME – Central de Material esterelizado", "Diretoria Clínica", "Repasse Médico", "Manutenção", 
+  "Gestão de Equipamentos", "Rouparia", "Costura", "Higiene e Limpeza", "Serviço de Nutrição e Dietética", 
+  "Farmácia – Central", "Transporte Próprio", "Morgue", "Central de Gases Medicinais", "Serviço Social", 
+  "Grupos Geradores", "Áreas Comuns", "Obras", "Paisagismo", "Raios- X", "Tomografia", 
+  "Ressonância Magnética", "Ultrassonografia", "Mamografia", "Laboratório de Análises Clínicas", 
+  "Quimioterapia", "Quimioterapia HSPM", "Radioterapia", "Medicina Nuclear", "PET – CT", 
+  "Laboratório de Anatomia Patológica", "Fisioterapia", "Banco de Sangue", "Iodoterapia", 
+  "TCTH – Onco – Hemato", "TCTH – Ambulatório /Day Hospital", "Fonoaudiologia", "Centro Cirúrgico", 
+  "Centro Cirúrgico Ambulatorial", "Angiologia Intervencionista", "Ambulatório Convênio e Particular", 
+  "U.I. 3º Andar – SUS, Conv. (Clín. Cirúr)", "U.I. 2º Andar – SUS, Conv (Clín. Médica)", 
+  "U.I. 4º Andar – Conv, Part. (Méd. e Cir)", "Pronto Atendimento", "Terapia Ocupacional", 
+  "U.I. 2º Andar – U.T.I.", "Lanchonete", "Estacionamento", "Ambulatório SUS", "Psicologia", 
+  "Pastoral / Capela", "TCTH – Bloco A", "TCTH – UTI", "Serviço de Estomaterapia", 
+  "Gerência Médica Estrategica", "Adm. Equipe Multi", "Gerenciamento de Leitos", "Comunicação", 
+  "TCTH Bloco B", "Cuidados Paliativos", "TCTH – Onco Pediatria", "Corrida / Campanha"
+].sort()
 
 export default function RequestPage() {
   const [availableTypes, setAvailableTypes] = useState<any[]>([])
@@ -24,6 +60,11 @@ export default function RequestPage() {
   const [selectedType, setSelectedType] = useState('')
   const [sector, setSector] = useState('')
   const [reason, setReason] = useState('')
+
+  // Estados para a busca inteligente de setor
+  const [searchQuery, setSearchQuery] = useState('')
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false)
+  const dropdownRef = useRef<HTMLDivElement>(null)
 
   const fetchAvailable = async () => {
     try {
@@ -39,9 +80,21 @@ export default function RequestPage() {
 
   useEffect(() => { fetchAvailable() }, [])
 
+  // Fechar o dropdown de busca se clicar fora dele
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setIsDropdownOpen(false)
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside)
+    return () => document.removeEventListener("mousedown", handleClickOutside)
+  }, [])
+
   const handleRequest = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!selectedType) return toast.error("Por favor, selecione um item no catálogo!")
+    if (!sector) return toast.error("Por favor, pesquise e selecione o setor de destino!")
 
     toast.promise(
       fetch('/api/requests', {
@@ -52,8 +105,11 @@ export default function RequestPage() {
       {
         loading: 'Processando seu pedido...',
         success: () => {
-          setSector(''); setReason(''); setSelectedType('');
-          fetchAvailable();
+          setSector('')
+          setSearchQuery('')
+          setReason('')
+          setSelectedType('')
+          fetchAvailable()
           return 'Pedido enviado com sucesso! 🏥'
         },
         error: 'Erro ao enviar. Tente novamente.'
@@ -61,8 +117,12 @@ export default function RequestPage() {
     )
   }
 
+  // Lógica para filtrar a lista com base no que a pessoa digita
+  const filteredSectors = SECTORS_IBCC.filter(s => 
+    s.toLowerCase().includes(searchQuery.toLowerCase())
+  )
+
   return (
-    // Adicionado o efeito de animação no container principal
     <div className="min-h-screen bg-[#f8fafc] pb-12 animate-in fade-in duration-700">
       
       {/* HEADER PREMIUM */}
@@ -81,7 +141,6 @@ export default function RequestPage() {
         </div>
       </div>
 
-      {/* CONTEÚDO PRINCIPAL (COM SLIDE-UP SMOOTH) */}
       <div className="max-w-4xl mx-auto px-6 -mt-12 animate-in fade-in slide-in-from-bottom-8 duration-700 delay-150">
         <form onSubmit={handleRequest} className="space-y-6">
           
@@ -142,28 +201,71 @@ export default function RequestPage() {
             </CardContent>
           </Card>
 
-          {/* PASSO 2: DETALHES */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <Card className="border-none shadow-xl">
+          {/* PASSO 2 E 3: DETALHES */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 relative z-50">
+            {/* Adicionamos 'relative z-50' e 'overflow-visible' neste Card para ele pular pra frente */}
+            <Card className="border-none shadow-xl relative z-50 overflow-visible">
               <CardContent className="p-6 space-y-4">
                 <div className="flex items-center gap-2">
                   <span className="bg-slate-900 text-white w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold">2</span>
-                  <Label className="font-bold text-slate-700 uppercase text-[10px] tracking-wider">Onde entregar?</Label>
+                  <Label className="font-bold text-slate-700 uppercase text-[10px] tracking-wider">Qual o Setor?</Label>
                 </div>
-                <div className="relative group">
-                  <MapPin className="absolute left-3 top-3.5 h-5 w-5 text-slate-400 group-focus-within:text-blue-600 transition-colors" />
-                  <Input 
-                    required 
-                    value={sector} 
-                    onChange={e => setSector(e.target.value)} 
-                    placeholder="Ex: UTI Adulto - Leito 12" 
-                    className="h-12 pl-10 border-slate-100 bg-slate-50/50 focus:bg-white transition-all font-medium rounded-xl"
-                  />
+                
+                {/* CAMPO DE BUSCA INTELIGENTE */}
+                <div className="relative z-50" ref={dropdownRef}>
+                  <div className="relative">
+                    <Search className="absolute left-3 top-3.5 h-5 w-5 text-slate-400" />
+                    <Input 
+                      type="text"
+                      placeholder="Pesquise o setor..."
+                      value={searchQuery}
+                      onChange={(e) => {
+                        setSearchQuery(e.target.value)
+                        setIsDropdownOpen(true)
+                        setSector('') 
+                      }}
+                      onFocus={() => setIsDropdownOpen(true)}
+                      className="h-12 pl-10 pr-10 border-slate-200 bg-white focus:bg-white transition-all font-medium rounded-xl text-slate-700 relative z-10"
+                    />
+                    <ChevronDown className="absolute right-3 top-3.5 h-5 w-5 text-slate-400 pointer-events-none z-20" />
+                  </div>
+
+                  {/* CAIXA SUSPENSA COM Z-INDEX 999 PRA FICAR NA FRENTE DE TUDO */}
+                  {isDropdownOpen && (
+                    <div className="absolute z-[999] w-full mt-2 bg-white border border-slate-200 rounded-xl shadow-2xl max-h-60 overflow-y-auto animate-in fade-in slide-in-from-top-2">
+                      {filteredSectors.length > 0 ? (
+                        filteredSectors.map((s) => (
+                          <div 
+                            key={s}
+                            onClick={() => {
+                              setSector(s)
+                              setSearchQuery(s) 
+                              setIsDropdownOpen(false) 
+                            }}
+                            className={`px-4 py-3 cursor-pointer text-sm font-medium transition-colors hover:bg-blue-50 hover:text-blue-700 ${sector === s ? 'bg-blue-100 text-blue-800' : 'text-slate-600'}`}
+                          >
+                            {s}
+                          </div>
+                        ))
+                      ) : (
+                        <div className="px-4 py-4 text-sm text-slate-400 text-center italic">
+                          Nenhum setor encontrado.
+                        </div>
+                      )}
+                    </div>
+                  )}
+                  
+                  {/* Confirmação visual discreta se o setor tá gravado na variável final */}
+                  {sector && (
+                    <div className="mt-2 text-xs font-bold text-green-600 flex items-center gap-1">
+                      <CheckCircle2 className="w-3 h-3" /> Setor confirmado
+                    </div>
+                  )}
                 </div>
               </CardContent>
             </Card>
 
-            <Card className="border-none shadow-xl">
+            <Card className="border-none shadow-xl relative z-10">
               <CardContent className="p-6 space-y-4">
                 <div className="flex items-center gap-2">
                   <span className="bg-slate-900 text-white w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold">3</span>
@@ -176,14 +278,13 @@ export default function RequestPage() {
                     value={reason} 
                     onChange={e => setReason(e.target.value)} 
                     placeholder="Ex: Admissão de urgência" 
-                    className="h-12 pl-10 border-slate-100 bg-slate-50/50 focus:bg-white transition-all font-medium rounded-xl"
+                    className="h-12 pl-10 border-slate-200 bg-white focus:bg-white transition-all font-medium rounded-xl text-slate-700"
                   />
                 </div>
               </CardContent>
             </Card>
           </div>
 
-          {/* BOTÃO DE AÇÃO FINAL */}
           <Button 
             type="submit" 
             disabled={!selectedType || loading}
