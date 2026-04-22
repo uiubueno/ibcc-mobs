@@ -10,13 +10,14 @@ export function DashboardCharts({ statusData, sectorData }: { statusData: any[],
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
       
       {/* Gráfico de Pizza: Status das Solicitações */}
-      <Card className="shadow-sm border-slate-200">
+      <Card className="shadow-sm border-slate-200 flex flex-col">
         <CardHeader className="pb-2">
           <CardTitle className="text-sm font-bold text-slate-600 uppercase tracking-wider">Distribuição de Status</CardTitle>
         </CardHeader>
-        <CardContent className="h-[350px] flex flex-col justify-between pb-6">
-          {/* Ajustei a altura aqui para 85% para dar respiro à legenda */}
-          <ResponsiveContainer width="100%" height="85%">
+        <CardContent className="flex-1 flex flex-col justify-between pb-6">
+          
+          {/* CURA DEFINITIVA: height com número fixo (240) sem aspas, width com % */}
+          <ResponsiveContainer width="100%" height={240}>
             <PieChart>
               <Pie
                 data={statusData}
@@ -38,8 +39,8 @@ export function DashboardCharts({ statusData, sectorData }: { statusData: any[],
             </PieChart>
           </ResponsiveContainer>
           
-          {/* Legenda Customizada - Agora com espaço garantido */}
-          <div className="flex flex-wrap justify-center gap-x-4 gap-y-2 px-4">
+          {/* Legenda Customizada */}
+          <div className="flex flex-wrap justify-center gap-x-4 gap-y-2 px-4 mt-4">
             {statusData.map((entry, index) => (
               <div key={entry.name} className="flex items-center gap-1.5">
                 <div 
@@ -56,12 +57,14 @@ export function DashboardCharts({ statusData, sectorData }: { statusData: any[],
       </Card>
 
       {/* Gráfico de Barras: Top Setores */}
-      <Card className="shadow-sm border-slate-200">
+      <Card className="shadow-sm border-slate-200 flex flex-col">
         <CardHeader className="pb-2">
           <CardTitle className="text-sm font-bold text-slate-600 uppercase tracking-wider">Top 5 Setores Solicitantes</CardTitle>
         </CardHeader>
-        <CardContent className="h-[350px] pt-4">
-          <ResponsiveContainer width="100%" height="100%">
+        <CardContent className="flex-1 pt-4 pb-6">
+          
+          {/* CURA DEFINITIVA: height com número fixo (280) */}
+          <ResponsiveContainer width="100%" height={280}>
             <BarChart data={sectorData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
               <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
               <XAxis 
@@ -86,6 +89,7 @@ export function DashboardCharts({ statusData, sectorData }: { statusData: any[],
               <Bar dataKey="total" fill="#3b82f6" radius={[6, 6, 0, 0]} barSize={35} />
             </BarChart>
           </ResponsiveContainer>
+          
         </CardContent>
       </Card>
 

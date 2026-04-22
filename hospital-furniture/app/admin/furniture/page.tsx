@@ -7,13 +7,12 @@ import {
   History, 
   Plus, 
   Package, 
-  Search, 
   ChevronRight,
   Wrench,
   Layers,
   Check,
-  ChevronsUpDown,
-  BookOpen
+  BookOpen,
+  AlertTriangle
 } from 'lucide-react'
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -25,6 +24,7 @@ import { Switch } from "@/components/ui/switch"
 import { Label } from "@/components/ui/label"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { Command, CommandGroup, CommandItem, CommandList, CommandEmpty, CommandInput } from "@/components/ui/command"
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog"
 
 export default function FurniturePage() {
   const [furnitureList, setFurnitureList] = useState<any[]>([])
@@ -42,6 +42,10 @@ export default function FurniturePage() {
   // Estados para o MODO LOTE
   const [isBulk, setIsBulk] = useState(false)
   const [bulkPatrimonies, setBulkPatrimonies] = useState<string[]>([''])
+
+  // Estados para o Modal de Manutenção
+  const [maintenanceItem, setMaintenanceItem] = useState<any>(null)
+  const [maintenanceQty, setMaintenanceQty] = useState('1')
 
   const fetchData = async () => {
     try {
@@ -71,19 +75,29 @@ export default function FurniturePage() {
     }
   }
 
-  const handleSendToMaintenance = async (id: string) => {
+  // NOVA LÓGICA DE MANUTENÇÃO (Disparada de dentro do Modal)
+  const confirmMaintenance = async () => {
+    if (!maintenanceItem) return
+
     toast.promise(
-      fetch(`/api/furniture/${id}/maintenance`, {
+      fetch(`/api/furniture/${maintenanceItem.id}/maintenance`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status: 'MANUTENCAO' })
+        body: JSON.stringify({ 
+          status: 'MANUTENCAO', 
+          maintenanceQuantity: parseInt(maintenanceQty, 10) // Manda a quantidade escolhida pro back-end
+        })
       }).then(async (res) => {
         if (!res.ok) throw new Error('Erro ao processar')
         return res.json()
       }),
       {
         loading: 'Enviando para a oficina...',
-        success: () => { fetchData(); return 'Item em reparo! 🛠️' },
+        success: () => { 
+          setMaintenanceItem(null)
+          fetchData() 
+          return 'Estoque atualizado! Item em reparo. 🛠️' 
+        },
         error: 'Ops! Falha ao atualizar manutenção.'
       }
     )
@@ -92,7 +106,6 @@ export default function FurniturePage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     
-    // Validação extra de segurança
     if (!type.trim()) {
       return toast.error("O campo 'Tipo' é obrigatório!")
     }
@@ -162,7 +175,7 @@ export default function FurniturePage() {
             <CardContent className="pt-6">
               <form onSubmit={handleSubmit} className="space-y-5">
                 
-                {/* CAMPO TIPO REFORMULADO (HÍBRIDO) */}
+                {/* CAMPO TIPO */}
                 <div className="space-y-1.5">
                   <div className="flex items-center justify-between">
                     <Label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Tipo do Mobiliário</Label>
@@ -328,7 +341,11 @@ export default function FurniturePage() {
                                 size="sm" 
                                 title="Enviar para Reparo"
                                 className="h-8 w-8 p-0 text-amber-600 hover:bg-amber-100"
-                                onClick={() => handleSendToMaintenance(item.id)}
+                                onClick={() => {
+                                  // Ao invés de disparar o update direto, abre o Modal e seta a qtd inicial como 1
+                                  setMaintenanceItem(item)
+                                  setMaintenanceQty('1')
+                                }}
                               >
                                 <Wrench className="w-4 h-4" />
                               </Button>
@@ -345,6 +362,61 @@ export default function FurniturePage() {
           </Card>
         </div>
       </div>
+
+      {/* ----------------------------------------------------------- */}
+      {/* MODAL DE ENVIO PARA MANUTENÇÃO (NOVO) */}
+      {/* ----------------------------------------------------------- */}
+      <Dialog open={!!maintenanceItem} onOpenChange={(open) => !open && setMaintenanceItem(null)}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="text-xl font-black text-amber-600 flex items-center gap-2">
+              <Wrench className="w-5 h-5" /> Reparo de Estoque
+            </DialogTitle>
+            <DialogDescription className="font-medium">
+              Movimentar <strong>{maintenanceItem?.name}</strong> para o status de Manutenção.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 pt-4">
+            {/* Se tiver só 1 item ou for patrimoniado, não deixa escolher a quantidade, apenas avisa */}
+            {maintenanceItem?.quantity === 1 || maintenanceItem?.patrimony ? (
+              <div className="bg-amber-50 p-3 rounded-lg border border-amber-100 flex items-start gap-2">
+                <AlertTriangle className="w-4 h-4 text-amber-600 mt-0.5" />
+                <p className="text-xs text-amber-800 font-medium leading-tight">
+                  Este item será movido integralmente para manutenção.
+                </p>
+              </div>
+            ) : (
+              <div className="space-y-2">
+                <Label className="text-xs font-bold uppercase tracking-wider text-slate-500">
+                  Quantidade a ser reparada
+                </Label>
+                <div className="flex items-center gap-2">
+                  <Input 
+                    type="number" 
+                    min="1" 
+                    max={maintenanceItem?.quantity} 
+                    value={maintenanceQty} 
+                    onChange={e => setMaintenanceQty(e.target.value)} 
+                    className="font-bold text-center"
+                  />
+                  <span className="text-sm font-medium text-slate-500 whitespace-nowrap">
+                    de {maintenanceItem?.quantity} disponíveis
+                  </span>
+                </div>
+              </div>
+            )}
+          </div>
+
+          <DialogFooter className="gap-2 sm:gap-0 pt-4">
+            <Button variant="outline" onClick={() => setMaintenanceItem(null)}>Cancelar</Button>
+            <Button onClick={confirmMaintenance} className="bg-amber-500 hover:bg-amber-600 font-bold text-white">
+              Confirmar Envio
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      
     </div>
   )
 }

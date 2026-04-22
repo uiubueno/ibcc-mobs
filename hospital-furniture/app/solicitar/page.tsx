@@ -67,7 +67,6 @@ export default function RequestPage() {
   const [sector, setSector] = useState('')
   const [reason, setReason] = useState('')
 
-  // Estados para a busca inteligente de setor
   const [searchQuery, setSearchQuery] = useState('')
   const [isDropdownOpen, setIsDropdownOpen] = useState(false)
   const dropdownRef = useRef<HTMLDivElement>(null)
@@ -86,7 +85,6 @@ export default function RequestPage() {
 
   useEffect(() => { fetchAvailable() }, [])
 
-  // Fechar o dropdown de busca se clicar fora dele
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
@@ -123,17 +121,17 @@ export default function RequestPage() {
     )
   }
 
-  // Lógica para filtrar a lista com base no que a pessoa digita
   const filteredSectors = SECTORS_IBCC.filter(s => 
     s.toLowerCase().includes(searchQuery.toLowerCase())
   )
 
   return (
     <div className="min-h-screen bg-[#f8fafc] pb-12 animate-in fade-in duration-700">
+      {/* Comentário no lugar certo para não quebrar a tela */}
       
-      {/* HEADER PREMIUM */}
+      {/* HEADER PREMIUM (Sem classes de animação conflitantes) */}
       <div className="bg-slate-900 pt-12 pb-24 px-6">
-        <div className="max-w-4xl mx-auto flex items-center justify-between animate-in fade-in slide-in-from-top-4 duration-1000">
+        <div className="max-w-4xl mx-auto flex items-center justify-between">
           <div className="space-y-1">
             <h1 className="text-3xl font-black text-white tracking-tight flex items-center gap-3">
               <Package2 className="text-blue-500 w-8 h-8" />
@@ -147,7 +145,8 @@ export default function RequestPage() {
         </div>
       </div>
 
-      <div className="max-w-4xl mx-auto px-6 -mt-12 animate-in fade-in slide-in-from-bottom-8 duration-700 delay-150">
+      {/* CONTEÚDO PRINCIPAL (Sem classes de animação conflitantes) */}
+      <div className="max-w-4xl mx-auto px-6 -mt-12">
         <form onSubmit={handleRequest} className="space-y-6">
           
           {/* PASSO 1: CATÁLOGO */}
@@ -302,7 +301,7 @@ export default function RequestPage() {
         </form>
 
         <p className="text-center text-slate-400 text-[10px] font-bold uppercase tracking-widest mt-8">
-          IBCC ONCOLOGIA • HOTELARIA SUPREMA 2.0
+          IBCC ONCOLOGIA • HOTELARIA
         </p>
       </div>
     </div>
