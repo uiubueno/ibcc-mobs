@@ -1,24 +1,27 @@
-import { auth } from '@/lib/auth'
-import { NextResponse } from 'next/server'
+// Puxando o 'auth' direto do seu arquivo principal que já existe aí no trabalho
+import { auth } from './lib/auth' 
 
 export default auth((req) => {
-  const { nextUrl, auth: session } = req
-  const isLoggedIn = !!session
+  const isLoggedIn = !!req.auth
+  const userRole = req.auth?.user?.role 
+  const isTryingToAccessAdmin = req.nextUrl.pathname.startsWith('/admin')
 
-  // Se o cara tentar acessar qualquer coisa que não seja o login e não estiver logado
-  if (!isLoggedIn && nextUrl.pathname !== '/login') {
-    return NextResponse.redirect(new URL('/login', nextUrl))
+  // Se o cara tentar entrar na área da Hotelaria (/admin)
+  if (isTryingToAccessAdmin) {
+    // 1. Não tá logado? Vai pro login.
+    if (!isLoggedIn) {
+      return Response.redirect(new URL('/login', req.nextUrl))
+    }
+
+    // 2. Tá logado, mas NÃO é ADMIN (ou seja, é Coordenador Solicitante)? 
+    // Chuta ele de volta pra tela inicial de solicitar/acompanhar.
+    if (userRole !== 'ADMIN') {
+      return Response.redirect(new URL('/', req.nextUrl)) 
+    }
   }
-
-  // Se ele já estiver logado e tentar ir pra tela de login, manda pra home
-  if (isLoggedIn && nextUrl.pathname === '/login') {
-    return NextResponse.redirect(new URL('/', nextUrl))
-  }
-
-  return NextResponse.next()
 })
 
-// Aqui dizemos em quais rotas o porteiro deve atuar
+// Aqui a gente avisa o porteiro quais portas ele deve vigiar
 export const config = {
-  matcher: ['/((?!api|_next/static|_next/image|favicon.ico).*)'],
+  matcher: ['/((?!api|_next/static|_next/image|.*\\.png$).*)'],
 }
