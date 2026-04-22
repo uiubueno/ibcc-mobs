@@ -20,37 +20,43 @@ import { Label } from "@/components/ui/label"
 import { Badge } from "@/components/ui/badge"
 
 const SECTORS_IBCC = [
-  "Diretoria Executiva", "Gerencia Apoio Tecnico", "Assuntos Regulatórios", "Central de Autorizações",
-  "Recepção Imagem", "Call Center", "Recepção – TCTH", "Adm. Unidades de Internação", 
-  "Adm. Enfermagem – Centros Cirurgicos", "Adm. TCTH", "Adm. SADT", "Adm. Serviços de Hotelaria", 
-  "Adm. Serviços de Suprimentos – Farmácia", "PABX", "Central de Aquecimento", "Central de Ar Condicionado", 
-  "Almoxarifado", "Adm. U.T.I e P.A", "Departamento de Pessoal", "Recursos Humanos", 
-  "Adm. Ambulatórios/ Quimioterapia", "Assessoria Jurídica", "Controle de Acesso e Informação", 
-  "Auditoria de Contas Medicas", "Financeiro", "Custos", "Assessoria Captação Recursos", "Faturamento", 
-  "Engajamento Médico", "Contabilidade", "Adm. Engenharia/Obras", "Compras", 
-  "Adm Apoio Serviços Assistenciais", "Central de Agendamento", "Tecnologia da Informação", 
-  "Gerencia de Operações", "Gerencia de Engenharia e Manutenção", "Portaria/Segurança", 
-  "Gerencia de Praticas Assistenciais", "SESMT", "SAC – Serviço Atendimento ao Consumidor", 
-  "Arquivo e Estatística", "Centro de Estudos", "Centro de Pesquisa Clínica", 
-  "Serviço de Educação Continuada", "Unidade Pompéia", "Unidade Santana", "Unidade Ipiranga", 
-  "Unidade Granja Viana", "Recepção Internação", "Recurso de Glosas", "Departamento Comercial", 
-  "Qualidade", "Segurança Paciente", "SCIH – Serviço Controle Infecção Hosp.", "Farmácia – Quimioterapia", 
-  "Farmácia – Centro Cirúrgico", "Coordenação Administrativo Amb/Cirurg", "Coord Adm Gestão Acesso", 
-  "CME – Central de Material esterelizado", "Diretoria Clínica", "Repasse Médico", "Manutenção", 
-  "Gestão de Equipamentos", "Rouparia", "Costura", "Higiene e Limpeza", "Serviço de Nutrição e Dietética", 
-  "Farmácia – Central", "Transporte Próprio", "Morgue", "Central de Gases Medicinais", "Serviço Social", 
-  "Grupos Geradores", "Áreas Comuns", "Obras", "Paisagismo", "Raios- X", "Tomografia", 
-  "Ressonância Magnética", "Ultrassonografia", "Mamografia", "Laboratório de Análises Clínicas", 
-  "Quimioterapia", "Quimioterapia HSPM", "Radioterapia", "Medicina Nuclear", "PET – CT", 
-  "Laboratório de Anatomia Patológica", "Fisioterapia", "Banco de Sangue", "Iodoterapia", 
-  "TCTH – Onco – Hemato", "TCTH – Ambulatório /Day Hospital", "Fonoaudiologia", "Centro Cirúrgico", 
-  "Centro Cirúrgico Ambulatorial", "Angiologia Intervencionista", "Ambulatório Convênio e Particular", 
-  "U.I. 3º Andar – SUS, Conv. (Clín. Cirúr)", "U.I. 2º Andar – SUS, Conv (Clín. Médica)", 
-  "U.I. 4º Andar – Conv, Part. (Méd. e Cir)", "Pronto Atendimento", "Terapia Ocupacional", 
-  "U.I. 2º Andar – U.T.I.", "Lanchonete", "Estacionamento", "Ambulatório SUS", "Psicologia", 
-  "Pastoral / Capela", "TCTH – Bloco A", "TCTH – UTI", "Serviço de Estomaterapia", 
-  "Gerência Médica Estrategica", "Adm. Equipe Multi", "Gerenciamento de Leitos", "Comunicação", 
-  "TCTH Bloco B", "Cuidados Paliativos", "TCTH – Onco Pediatria", "Corrida / Campanha"
+  "100 - Diretoria Executiva", "101 - Gerencia Apoio Tecnico", "105 - Assuntos Regulatórios",
+  "111 - Central de Autorizações", "115 - Recepção Imagem", "118 - Call Center",
+  "119 - Recepção – TCTH", "121 - Adm. Unidades de Internação", "122 - Adm. Enfermagem – Centros Cirurgicos",
+  "123 - Adm. TCTH", "124 - Adm. SADT", "127 - Adm. Serviços de Hotelaria",
+  "128 - Adm. Serviços de Suprimentos – Farmácia", "130 - PABX", "131 - Central de Aquecimento",
+  "132 - Central de Ar Condicionado", "133 - Almoxarifado", "135 - Adm. U.T.I e P.A",
+  "136 - Departamento de Pessoal", "137 - Recursos Humanos", "138 - Adm. Ambulatórios/ Quimioterapia",
+  "139 - Assessoria Jurídica", "140 - Controle de Acesso e Informação", "142 - Auditoria de Contas Medicas",
+  "145 - Financeiro", "150 - Custos", "152 - Assessoria Captação Recursos", "154 - Faturamento",
+  "156 - Engajamento Médico", "157 - Contabilidade", "158 - Adm. Engenharia/Obras", "160 - Compras",
+  "162 - Adm Apoio Serviços Assistenciais", "163 - Central de Agendamento", "166 - Tecnologia da Informação",
+  "167 - Gerencia de Operações", "168 - Gerencia de Engenharia e Manutenção", "169 - Portaria/Segurança",
+  "171 - Gerencia de Praticas Assistenciais", "172 - SESMT", "174 - SAC – Serviço Atendimento ao Consumidor",
+  "175 - Arquivo e Estatística", "178 - Centro de Estudos", "179 - Centro de Pesquisa Clínica",
+  "180 - Serviço de Educação Continuada", "181 - Unidade Pompéia", "182 - Unidade Santana",
+  "183 - Unidade Ipiranga", "184 - Unidade Granja Viana", "196 - Recepção Internação",
+  "197 - Recurso de Glosas", "199 - Departamento Comercial", "200 - Qualidade",
+  "202 - Segurança Paciente", "203 - SCIH – Serviço Controle Infecção Hosp.", "204 - Farmácia – Quimioterapia",
+  "205 - Farmácia – Centro Cirúrgico", "207 - Coordenação Administrativo Amb/Cirurg", "208 - Coord Adm Gestão Acesso",
+  "218 - CME – Central de Material esterelizado", "221 - Diretoria Clínica", "225 - Repasse Médico",
+  "227 - Manutenção", "228 - Gestão de Equipamentos", "236 - Rouparia", "239 - Costura",
+  "242 - Higiene e Limpeza", "245 - Serviço de Nutrição e Dietética", "251 - Farmácia – Central",
+  "257 - Transporte Próprio", "263 - Morgue", "266 - Central de Gases Medicinais", "272 - Serviço Social",
+  "273 - Grupos Geradores", "274 - Áreas Comuns", "276 - Obras", "277 - Paisagismo",
+  "300 - Raios- X", "305 - Tomografia", "310 - Ressonância Magnética", "315 - Ultrassonografia",
+  "325 - Mamografia", "330 - Laboratório de Análises Clínicas", "360 - Quimioterapia",
+  "361 - Quimioterapia HSPM", "365 - Radioterapia", "375 - Medicina Nuclear", "376 - PET – CT",
+  "380 - Laboratório de Anatomia Patológica", "381 - Fisioterapia", "385 - Banco de Sangue",
+  "388 - Iodoterapia", "389 - TCTH – Onco – Hemato", "390 - TCTH – Ambulatório /Day Hospital",
+  "391 - Fonoaudiologia", "400 - Centro Cirúrgico", "401 - Centro Cirúrgico Ambulatorial",
+  "402 - Angiologia Intervencionista", "500 - Ambulatório Convênio e Particular", "516 - U.I. 3º Andar – SUS, Conv. (Clín. Cirúr)",
+  "517 - U.I. 2º Andar – SUS, Conv (Clín. Médica)", "518 - U.I. 4º Andar – Conv, Part. (Méd. e Cir)",
+  "545 - Pronto Atendimento", "546 - Terapia Ocupacional", "550 - U.I. 2º Andar – U.T.I.",
+  "560 - Lanchonete", "565 - Estacionamento", "570 - Ambulatório SUS", "585 - Psicologia",
+  "587 - Pastoral / Capela", "588 - TCTH – Bloco A", "589 - TCTH – UTI", "590 - Serviço de Estomaterapia",
+  "592 - Gerência Médica Estrategica", "594 - Adm. Equipe Multi", "597 - Gerenciamento de Leitos",
+  "599 - Comunicação", "603 - TCTH Bloco B", "604 - Cuidados Paliativos", "606 - TCTH – Onco Pediatria"
 ].sort()
 
 export default function RequestPage() {
@@ -203,7 +209,6 @@ export default function RequestPage() {
 
           {/* PASSO 2 E 3: DETALHES */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6 relative z-50">
-            {/* Adicionamos 'relative z-50' e 'overflow-visible' neste Card para ele pular pra frente */}
             <Card className="border-none shadow-xl relative z-50 overflow-visible">
               <CardContent className="p-6 space-y-4">
                 <div className="flex items-center gap-2">
@@ -217,7 +222,7 @@ export default function RequestPage() {
                     <Search className="absolute left-3 top-3.5 h-5 w-5 text-slate-400" />
                     <Input 
                       type="text"
-                      placeholder="Pesquise o setor..."
+                      placeholder="Pesquise o setor ou número..."
                       value={searchQuery}
                       onChange={(e) => {
                         setSearchQuery(e.target.value)
