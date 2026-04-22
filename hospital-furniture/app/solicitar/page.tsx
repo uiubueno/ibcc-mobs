@@ -11,7 +11,11 @@ import {
   ChevronRight,
   Info,
   Search,
-  ChevronDown
+  ChevronDown,
+  ShoppingCart,
+  Plus,
+  Minus,
+  Trash2
 } from 'lucide-react'
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -59,25 +63,34 @@ const SECTORS_IBCC = [
   "599 - Comunicação", "603 - TCTH Bloco B", "604 - Cuidados Paliativos", "606 - TCTH – Onco Pediatria"
 ].sort()
 
+// Nova interface para os itens do carrinho
+interface CartItem {
+  type: string
+  quantity: number
+  reason: string
+}
+
 export default function RequestPage() {
   const [availableTypes, setAvailableTypes] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   
-  const [selectedType, setSelectedType] = useState('')
+  // O Estado agora é um Carrinho (Array) em vez de um item único
+  const [cart, setCart] = useState<CartItem[]>([])
+  
   const [sector, setSector] = useState('')
-  const [reason, setReason] = useState('')
-
   const [searchQuery, setSearchQuery] = useState('')
   const [isDropdownOpen, setIsDropdownOpen] = useState(false)
   const dropdownRef = useRef<HTMLDivElement>(null)
 
   const fetchAvailable = async () => {
     try {
+      // Continuamos buscando os tipos, mas você vai ver no mapeamento abaixo 
+      // que eu tirei a exibição do 'item.count'
       const res = await fetch('/api/requests/available')
       const data = await res.json()
       setAvailableTypes(data)
     } catch (e) {
-      toast.error("Erro ao carregar estoque disponível.")
+      toast.error("Erro ao carregar catálogo.")
     } finally {
       setLoading(false)
     }
@@ -95,25 +108,60 @@ export default function RequestPage() {
     return () => document.removeEventListener("mousedown", handleClickOutside)
   }, [])
 
+  // Função para adicionar item ao carrinho
+  const addToCart = (type: string) => {
+    const existing = cart.find(item => item.type === type)
+    if (existing) {
+      // Se já tem, só aumenta a quantidade
+      setCart(cart.map(item => item.type === type ? { ...item, quantity: item.quantity + 1 } : item))
+      toast.success(`${type} adicionado!`, { icon: '🛒' })
+    } else {
+      // Se não tem, cria um novo no carrinho
+      setCart([...cart, { type, quantity: 1, reason: '' }])
+      toast.success(`${type} adicionado ao pedido!`, { icon: '🛒' })
+    }
+  }
+
+  const updateCartItemReason = (type: string, newReason: string) => {
+    setCart(cart.map(item => item.type === type ? { ...item, reason: newReason } : item))
+  }
+
+  const updateCartItemQuantity = (type: string, delta: number) => {
+    setCart(cart.map(item => {
+      if (item.type === type) {
+        const newQty = item.quantity + delta
+        return newQty > 0 ? { ...item, quantity: newQty } : item
+      }
+      return item
+    }))
+  }
+
+  const removeFromCart = (type: string) => {
+    setCart(cart.filter(item => item.type !== type))
+  }
+
   const handleRequest = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!selectedType) return toast.error("Por favor, selecione um item no catálogo!")
+    if (cart.length === 0) return toast.error("Seu pedido está vazio! Adicione itens do catálogo.")
     if (!sector) return toast.error("Por favor, pesquise e selecione o setor de destino!")
+    
+    // Validação extra: todos os itens precisam de motivo
+    if (cart.some(item => !item.reason.trim())) {
+      return toast.error("Por favor, preencha o motivo para todos os itens do pedido.")
+    }
 
     toast.promise(
       fetch('/api/requests', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ type: selectedType, sector, reason })
+        body: JSON.stringify({ items: cart, sector }) // Enviamos o Array inteiro agora
       }),
       {
-        loading: 'Processando seu pedido...',
+        loading: 'Processando seu pedido múltiplo...',
         success: () => {
           setSector('')
           setSearchQuery('')
-          setReason('')
-          setSelectedType('')
-          fetchAvailable()
+          setCart([]) // Limpa o carrinho
           return 'Pedido enviado com sucesso! 🏥'
         },
         error: 'Erro ao enviar. Tente novamente.'
@@ -127,175 +175,210 @@ export default function RequestPage() {
 
   return (
     <div className="min-h-screen bg-[#f8fafc] pb-12 animate-in fade-in duration-700">
-      {/* Comentário no lugar certo para não quebrar a tela */}
       
-      {/* HEADER PREMIUM (Sem classes de animação conflitantes) */}
+      {/* HEADER PREMIUM */}
       <div className="bg-slate-900 pt-12 pb-24 px-6">
         <div className="max-w-4xl mx-auto flex items-center justify-between">
           <div className="space-y-1">
             <h1 className="text-3xl font-black text-white tracking-tight flex items-center gap-3">
               <Package2 className="text-blue-500 w-8 h-8" />
-              Solicitar Mobiliário
+              Solicitação de Mobiliário
             </h1>
             <p className="text-slate-400 font-medium">Hotelaria IBCC Oncologia</p>
           </div>
-          <Badge className="bg-blue-500/10 text-blue-400 border-blue-500/20 py-1 px-3 hidden sm:flex">
-            Sincronizado em tempo real
+          <Badge className="bg-blue-500/10 text-blue-400 border-blue-500/20 py-1.5 px-4 hidden sm:flex items-center gap-2">
+            <ShoppingCart className="w-4 h-4" /> 
+            {cart.length} {cart.length === 1 ? 'item no pedido' : 'itens no pedido'}
           </Badge>
         </div>
       </div>
 
-      {/* CONTEÚDO PRINCIPAL (Sem classes de animação conflitantes) */}
       <div className="max-w-4xl mx-auto px-6 -mt-12">
         <form onSubmit={handleRequest} className="space-y-6">
           
-          {/* PASSO 1: CATÁLOGO */}
-          <Card className="border-none shadow-2xl shadow-slate-200/60 overflow-hidden">
-            <div className="bg-white p-6 border-b border-slate-100 flex items-center justify-between">
-              <h2 className="font-bold text-slate-800 flex items-center gap-2">
+          {/* PASSO 1: O DESTINO (Movido para cima para ser a primeira coisa) */}
+          <Card className="border-none shadow-2xl shadow-slate-200/60 !overflow-visible relative z-[9999]">
+            <CardContent className="p-6 space-y-4 !overflow-visible"> 
+              <div className="flex items-center gap-2">
                 <span className="bg-blue-600 text-white w-6 h-6 rounded-full flex items-center justify-center text-xs font-black">1</span>
-                Selecione o que você precisa
-              </h2>
-              {selectedType && (
-                <span className="text-[10px] font-black uppercase text-blue-600 bg-blue-50 px-2 py-1 rounded-md animate-bounce">
-                  Selecionado
-                </span>
-              )}
-            </div>
-            
-            <CardContent className="p-6 bg-slate-50/30">
-              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
-                {loading ? (
-                  [1, 2, 3].map(i => <div key={i} className="h-28 bg-slate-100 animate-pulse rounded-2xl" />)
-                ) : availableTypes.length === 0 ? (
-                  <div className="col-span-full py-12 text-center">
-                    <Info className="w-10 h-10 text-slate-300 mx-auto mb-2" />
-                    <p className="text-slate-500 font-medium">Nenhum item disponível no momento.</p>
-                  </div>
-                ) : (
-                  availableTypes.map((item) => (
-                    <button
-                      key={item.type}
-                      type="button"
-                      onClick={() => setSelectedType(item.type)}
-                      className={`relative group p-5 rounded-2xl border-2 text-left transition-all duration-300 active:scale-95 ${
-                        selectedType === item.type 
-                        ? 'border-blue-600 bg-white shadow-xl shadow-blue-900/10 scale-[1.02]' 
-                        : 'border-white bg-white hover:border-slate-200 hover:shadow-md'
-                      }`}
-                    >
-                      {selectedType === item.type && (
-                        <CheckCircle2 className="absolute top-3 right-3 w-5 h-5 text-blue-600 animate-in zoom-in duration-300" />
-                      )}
-                      
-                      <div className="flex flex-col h-full justify-between gap-4">
-                        <span className={`text-[10px] font-black uppercase tracking-widest ${selectedType === item.type ? 'text-blue-600' : 'text-slate-400'}`}>
-                          Mobiliário
-                        </span>
-                        <div>
-                          <p className="font-bold text-slate-900 leading-tight mb-1">{item.type}</p>
-                          <p className="text-xs text-slate-500">
-                            <span className="font-black text-slate-900">{item.count}</span> disponíveis
-                          </p>
+                <Label className="font-bold text-slate-800">Para qual setor é este pedido?</Label>
+              </div>
+              
+              <div className="relative z-50" ref={dropdownRef}>
+                <div className="relative">
+                  <Search className="absolute left-3 top-3.5 h-5 w-5 text-slate-400" />
+                  <Input 
+                    type="text"
+                    placeholder="Pesquise o setor ou o centro de custo (ex: 128)..."
+                    value={searchQuery}
+                    onChange={(e) => {
+                      setSearchQuery(e.target.value)
+                      setIsDropdownOpen(true)
+                      setSector('') 
+                    }}
+                    onFocus={() => setIsDropdownOpen(true)}
+                    className="h-12 pl-10 pr-10 border-slate-200 bg-slate-50 focus:bg-white transition-all font-medium rounded-xl text-slate-700 relative z-10"
+                  />
+                  <ChevronDown className="absolute right-3 top-3.5 h-5 w-5 text-slate-400 pointer-events-none z-20" />
+                </div>
+
+                {isDropdownOpen && (
+                  <div className="absolute z-[999] w-full mt-2 bg-white border border-slate-200 rounded-xl shadow-2xl max-h-60 overflow-y-auto animate-in fade-in slide-in-from-top-2">
+                    {filteredSectors.length > 0 ? (
+                      filteredSectors.map((s) => (
+                        <div 
+                          key={s}
+                          onClick={() => {
+                            setSector(s)
+                            setSearchQuery(s) 
+                            setIsDropdownOpen(false) 
+                          }}
+                          className={`px-4 py-3 cursor-pointer text-sm font-medium transition-colors hover:bg-blue-50 hover:text-blue-700 ${sector === s ? 'bg-blue-100 text-blue-800' : 'text-slate-600'}`}
+                        >
+                          {s}
                         </div>
+                      ))
+                    ) : (
+                      <div className="px-4 py-4 text-sm text-slate-400 text-center italic">
+                        Nenhum setor encontrado.
                       </div>
-                    </button>
-                  ))
+                    )}
+                  </div>
+                )}
+                
+                {sector && (
+                  <div className="mt-2 text-xs font-bold text-green-600 flex items-center gap-1 animate-in fade-in">
+                    <CheckCircle2 className="w-3 h-3" /> Setor confirmado para entrega
+                  </div>
                 )}
               </div>
             </CardContent>
           </Card>
 
-          {/* PASSO 2 E 3: DETALHES */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 relative z-50">
-            <Card className="border-none shadow-xl relative z-50 overflow-visible">
-              <CardContent className="p-6 space-y-4">
-                <div className="flex items-center gap-2">
-                  <span className="bg-slate-900 text-white w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold">2</span>
-                  <Label className="font-bold text-slate-700 uppercase text-[10px] tracking-wider">Qual o Setor?</Label>
-                </div>
-                
-                {/* CAMPO DE BUSCA INTELIGENTE */}
-                <div className="relative z-50" ref={dropdownRef}>
-                  <div className="relative">
-                    <Search className="absolute left-3 top-3.5 h-5 w-5 text-slate-400" />
-                    <Input 
-                      type="text"
-                      placeholder="Pesquise o setor ou número..."
-                      value={searchQuery}
-                      onChange={(e) => {
-                        setSearchQuery(e.target.value)
-                        setIsDropdownOpen(true)
-                        setSector('') 
-                      }}
-                      onFocus={() => setIsDropdownOpen(true)}
-                      className="h-12 pl-10 pr-10 border-slate-200 bg-white focus:bg-white transition-all font-medium rounded-xl text-slate-700 relative z-10"
-                    />
-                    <ChevronDown className="absolute right-3 top-3.5 h-5 w-5 text-slate-400 pointer-events-none z-20" />
+          {/* PASSO 2: CATÁLOGO (Sem exibir quantidades) */}
+          <Card className="border-none shadow-xl shadow-slate-200/40 overflow-hidden relative z-10">
+            <div className="bg-white p-6 border-b border-slate-100 flex items-center justify-between">
+              <h2 className="font-bold text-slate-800 flex items-center gap-2">
+                <span className="bg-slate-900 text-white w-6 h-6 rounded-full flex items-center justify-center text-xs font-black">2</span>
+                Selecione os itens do catálogo
+              </h2>
+            </div>
+            
+            <CardContent className="p-6 bg-slate-50/30">
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+                {loading ? (
+                  [1, 2, 3].map(i => <div key={i} className="h-24 bg-slate-100 animate-pulse rounded-2xl" />)
+                ) : availableTypes.length === 0 ? (
+                  <div className="col-span-full py-8 text-center">
+                    <Info className="w-8 h-8 text-slate-300 mx-auto mb-2" />
+                    <p className="text-slate-500 font-medium">Catálogo indisponível no momento.</p>
                   </div>
-
-                  {/* CAIXA SUSPENSA COM Z-INDEX 999 PRA FICAR NA FRENTE DE TUDO */}
-                  {isDropdownOpen && (
-                    <div className="absolute z-[999] w-full mt-2 bg-white border border-slate-200 rounded-xl shadow-2xl max-h-60 overflow-y-auto animate-in fade-in slide-in-from-top-2">
-                      {filteredSectors.length > 0 ? (
-                        filteredSectors.map((s) => (
-                          <div 
-                            key={s}
-                            onClick={() => {
-                              setSector(s)
-                              setSearchQuery(s) 
-                              setIsDropdownOpen(false) 
-                            }}
-                            className={`px-4 py-3 cursor-pointer text-sm font-medium transition-colors hover:bg-blue-50 hover:text-blue-700 ${sector === s ? 'bg-blue-100 text-blue-800' : 'text-slate-600'}`}
-                          >
-                            {s}
+                ) : (
+                  availableTypes.map((item) => {
+                    // Verifica se já está no carrinho
+                    const inCart = cart.some(c => c.type === item.type)
+                    
+                    return (
+                      <button
+                        key={item.type}
+                        type="button"
+                        onClick={() => addToCart(item.type)}
+                        className={`group p-4 rounded-2xl border-2 text-left transition-all duration-300 active:scale-95 ${
+                          inCart 
+                          ? 'border-blue-600 bg-blue-50 shadow-md shadow-blue-900/5' 
+                          : 'border-white bg-white hover:border-slate-200 hover:shadow-sm'
+                        }`}
+                      >
+                        <div className="flex flex-col h-full justify-between gap-2">
+                          <div className="flex justify-between items-start">
+                            <span className={`text-[10px] font-black uppercase tracking-widest ${inCart ? 'text-blue-600' : 'text-slate-400'}`}>
+                              Mobiliário
+                            </span>
+                            {inCart ? (
+                              <CheckCircle2 className="w-4 h-4 text-blue-600" />
+                            ) : (
+                              <Plus className="w-4 h-4 text-slate-300 group-hover:text-blue-500 transition-colors" />
+                            )}
                           </div>
-                        ))
-                      ) : (
-                        <div className="px-4 py-4 text-sm text-slate-400 text-center italic">
-                          Nenhum setor encontrado.
+                          <p className={`font-bold leading-tight ${inCart ? 'text-blue-900' : 'text-slate-900'}`}>
+                            {item.type}
+                          </p>
                         </div>
-                      )}
-                    </div>
-                  )}
-                  
-                  {/* Confirmação visual discreta se o setor tá gravado na variável final */}
-                  {sector && (
-                    <div className="mt-2 text-xs font-bold text-green-600 flex items-center gap-1">
-                      <CheckCircle2 className="w-3 h-3" /> Setor confirmado
-                    </div>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
+                      </button>
+                    )
+                  })
+                )}
+              </div>
+            </CardContent>
+          </Card>
 
-            <Card className="border-none shadow-xl relative z-10">
-              <CardContent className="p-6 space-y-4">
-                <div className="flex items-center gap-2">
-                  <span className="bg-slate-900 text-white w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold">3</span>
-                  <Label className="font-bold text-slate-700 uppercase text-[10px] tracking-wider">Qual o motivo?</Label>
-                </div>
-                <div className="relative group">
-                  <MessageSquare className="absolute left-3 top-3.5 h-5 w-5 text-slate-400 group-focus-within:text-blue-600 transition-colors" />
-                  <Input 
-                    required 
-                    value={reason} 
-                    onChange={e => setReason(e.target.value)} 
-                    placeholder="Ex: Admissão de urgência" 
-                    className="h-12 pl-10 border-slate-200 bg-white focus:bg-white transition-all font-medium rounded-xl text-slate-700"
-                  />
-                </div>
-              </CardContent>
-            </Card>
-          </div>
+          {/* PASSO 3: O CARRINHO DE COMPRAS */}
+          {cart.length > 0 && (
+            <div className="space-y-4 animate-in slide-in-from-bottom-4 duration-500 relative z-10">
+              <h3 className="font-black text-slate-800 pl-2 flex items-center gap-2">
+                <ShoppingCart className="w-5 h-5 text-blue-600" /> 
+                Itens no seu Pedido
+              </h3>
+              
+              {cart.map((item) => (
+                <Card key={item.type} className="border-slate-200 shadow-sm overflow-hidden">
+                  <div className="flex flex-col sm:flex-row">
+                    {/* Lateral Esquerda: Nome e Quantidade */}
+                    <div className="bg-slate-50 p-4 sm:w-1/3 border-b sm:border-b-0 sm:border-r border-slate-200 flex flex-col justify-center">
+                      <p className="font-bold text-slate-900 mb-3">{item.type}</p>
+                      
+                      <div className="flex items-center gap-3 bg-white w-fit px-2 py-1.5 rounded-lg border border-slate-200 shadow-sm">
+                        <button 
+                          type="button" 
+                          onClick={() => updateCartItemQuantity(item.type, -1)}
+                          className="w-6 h-6 flex items-center justify-center rounded-md bg-slate-100 hover:bg-slate-200 text-slate-600 transition-colors"
+                        >
+                          <Minus className="w-3 h-3" />
+                        </button>
+                        <span className="font-black text-sm w-4 text-center text-slate-800">{item.quantity}</span>
+                        <button 
+                          type="button" 
+                          onClick={() => updateCartItemQuantity(item.type, 1)}
+                          className="w-6 h-6 flex items-center justify-center rounded-md bg-slate-100 hover:bg-slate-200 text-slate-600 transition-colors"
+                        >
+                          <Plus className="w-3 h-3" />
+                        </button>
+                      </div>
+                    </div>
+                    
+                    {/* Lateral Direita: Motivo */}
+                    <div className="p-4 sm:w-2/3 relative flex flex-col justify-center gap-2">
+                      <Label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Qual a justificativa para {item.quantity === 1 ? 'este item' : 'estes itens'}?</Label>
+                      <Input 
+                        required 
+                        value={item.reason} 
+                        onChange={e => updateCartItemReason(item.type, e.target.value)} 
+                        placeholder={`Ex: Substituição de ${item.type} quebrado`} 
+                        className="bg-slate-50 border-slate-100"
+                      />
+                      
+                      <button 
+                        type="button" 
+                        onClick={() => removeFromCart(item.type)}
+                        className="absolute top-4 right-4 text-slate-300 hover:text-red-500 transition-colors"
+                        title="Remover do pedido"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
+                  </div>
+                </Card>
+              ))}
+            </div>
+          )}
 
           <Button 
             type="submit" 
-            disabled={!selectedType || loading}
-            className="w-full h-16 bg-blue-600 hover:bg-blue-700 text-white rounded-2xl text-lg font-black shadow-2xl shadow-blue-600/30 transition-all hover:-translate-y-1 active:scale-95 disabled:opacity-50 disabled:translate-y-0"
+            disabled={cart.length === 0 || loading}
+            className="w-full h-16 bg-blue-600 hover:bg-blue-700 text-white rounded-2xl text-lg font-black shadow-2xl shadow-blue-600/30 transition-all hover:-translate-y-1 active:scale-95 disabled:opacity-50 disabled:translate-y-0 relative z-10 mt-8"
           >
             <Send className="w-5 h-5 mr-3" />
-            FINALIZAR SOLICITAÇÃO
+            FINALIZAR PEDIDO
             <ChevronRight className="w-5 h-5 ml-auto opacity-50" />
           </Button>
         </form>

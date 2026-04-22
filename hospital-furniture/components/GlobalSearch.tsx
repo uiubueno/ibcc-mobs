@@ -15,6 +15,8 @@ import {
 import {
   Dialog,
   DialogContent,
+  DialogHeader,
+  DialogTitle,
 } from "@/components/ui/dialog"
 
 export function GlobalSearch() {
@@ -55,7 +57,7 @@ export function GlobalSearch() {
 
   const runCommand = (path: string) => {
     setOpen(false)
-    setQuery('') // Limpa a busca ao fechar
+    setQuery('') 
     router.push(path)
   }
 
@@ -74,7 +76,11 @@ export function GlobalSearch() {
 
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="overflow-hidden p-0 shadow-2xl border-slate-200">
-          {/* O segredo está no shouldFilter={false} abaixo */}
+          {/* RESOLUÇÃO DO ERRO: Adicionado Header e Title com sr-only (invisível mas presente) */}
+          <DialogHeader className="sr-only">
+            <DialogTitle>Busca Global de Ativos</DialogTitle>
+          </DialogHeader>
+
           <Command className="rounded-lg border-none" shouldFilter={false}>
             <CommandInput 
               placeholder="Digite o patrimônio, setor ou nome..." 
@@ -106,7 +112,7 @@ export function GlobalSearch() {
               )}
 
               {results.requests.length > 0 && (
-                <CommandGroup heading="Movimentações Recentes">
+                <CommandGroup heading="Pedidos e Movimentações">
                   {results.requests.map((req) => (
                     <CommandItem 
                       key={req.id} 
@@ -117,7 +123,12 @@ export function GlobalSearch() {
                       <ClipboardList className="mr-3 h-4 w-4 text-amber-500" />
                       <div className="flex flex-col">
                         <span className="font-bold text-slate-900">{req.sector}</span>
-                        <span className="text-xs text-slate-500">{req.furniture.name} • {req.status}</span>
+                        <span className="text-xs text-slate-500 uppercase font-black tracking-tighter">
+                          {/* Ajustado para ler o primeiro item do carrinho como referência */}
+                          {req.items?.length > 0 
+                            ? `${req.items[0].quantity}x ${req.items[0].type}${req.items.length > 1 ? '...' : ''}` 
+                            : 'Pedido Geral'} • {req.status}
+                        </span>
                       </div>
                     </CommandItem>
                   ))}

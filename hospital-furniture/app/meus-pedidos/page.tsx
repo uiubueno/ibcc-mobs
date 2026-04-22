@@ -8,23 +8,33 @@ import {
   Truck, 
   XCircle,
   CalendarDays,
-  Info
+  Info,
+  Search,
+  ChevronLeft,
+  ChevronRight
 } from 'lucide-react'
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
+import { Input } from "@/components/ui/input"
+import { Button } from "@/components/ui/button"
 import { format } from "date-fns"
 import { ptBR } from "date-fns/locale"
 
 export default function MyRequestsPage() {
   const [requests, setRequests] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
+  
+  // Estados de Busca e Paginação
+  const [search, setSearch] = useState('')
+  const [currentPage, setCurrentPage] = useState(1)
+  const itemsPerPage = 5
 
   useEffect(() => {
     const fetchMyRequests = async () => {
       try {
         const res = await fetch('/api/requests')
         const data = await res.json()
-        setRequests(data)
+        setRequests(Array.isArray(data) ? data : [])
       } catch (error) {
         console.error("Erro ao buscar pedidos:", error)
       } finally {
@@ -34,7 +44,18 @@ export default function MyRequestsPage() {
     fetchMyRequests()
   }, [])
 
-  // Função para renderizar o visual de cada status
+  // --- LÓGICA DE FILTRAGEM E PAGINAÇÃO ---
+  const filteredRequests = requests.filter(req => 
+    req.id.toLowerCase().includes(search.toLowerCase()) ||
+    req.sector.toLowerCase().includes(search.toLowerCase())
+  )
+
+  const totalPages = Math.ceil(filteredRequests.length / itemsPerPage)
+  const paginatedRequests = filteredRequests.slice(
+    (currentPage - 1) * itemsPerPage, 
+    currentPage * itemsPerPage
+  )
+
   const getStatusDisplay = (status: string) => {
     switch (status) {
       case 'PENDENTE':
@@ -66,12 +87,7 @@ export default function MyRequestsPage() {
           bar: 'bg-red-500 w-full'
         }
       default:
-        return { 
-          color: 'bg-slate-100 text-slate-700', 
-          icon: <Info className="w-4 h-4" />, 
-          text: status,
-          bar: 'bg-slate-300 w-0'
-        }
+        return { color: 'bg-slate-100 text-slate-700', icon: <Info className="w-4 h-4" />, text: status, bar: 'bg-slate-300 w-0' }
     }
   }
 
@@ -80,72 +96,131 @@ export default function MyRequestsPage() {
       
       {/* HEADER */}
       <div className="bg-slate-900 pt-12 pb-24 px-6">
-        <div className="max-w-3xl mx-auto flex items-center justify-between">
+        <div className="max-w-3xl mx-auto space-y-6">
           <div className="space-y-1">
             <h1 className="text-3xl font-black text-white tracking-tight flex items-center gap-3">
               <Package2 className="text-blue-500 w-8 h-8" />
               Meus Pedidos
             </h1>
-            <p className="text-slate-400 font-medium">Acompanhe suas solicitações de mobiliário</p>
+            <p className="text-slate-400 font-medium italic">IBCC Oncologia • Gestão de Mobiliário</p>
+          </div>
+
+          {/* BARRA DE BUSCA */}
+          <div className="relative group">
+            <Search className="absolute left-4 top-3.5 w-5 h-5 text-slate-500 group-focus-within:text-blue-500 transition-colors" />
+            <Input 
+              placeholder="Buscar por ID do pedido ou Setor..." 
+              className="pl-12 h-12 bg-white/10 border-white/10 text-white placeholder:text-slate-500 rounded-2xl focus:bg-white focus:text-slate-900 transition-all shadow-2xl"
+              value={search}
+              onChange={(e) => { setSearch(e.target.value); setCurrentPage(1); }}
+            />
           </div>
         </div>
       </div>
 
       {/* LISTA DE PEDIDOS */}
-      <div className="max-w-3xl mx-auto px-6 -mt-12 space-y-4">
+      <div className="max-w-3xl mx-auto px-6 -mt-10 space-y-6">
         {loading ? (
-          [1, 2, 3].map(i => <div key={i} className="h-32 bg-white rounded-2xl animate-pulse shadow-sm" />)
-        ) : requests.length === 0 ? (
-          <Card className="border-dashed shadow-sm p-12 text-center bg-white">
-            <Info className="w-12 h-12 text-slate-300 mx-auto mb-4" />
-            <h3 className="font-bold text-slate-700 text-lg">Você ainda não fez nenhum pedido</h3>
-            <p className="text-slate-500 mt-1">Vá até a tela de solicitação para pedir um mobiliário.</p>
+          [1, 2].map(i => <div key={i} className="h-48 bg-white rounded-3xl animate-pulse shadow-sm" />)
+        ) : paginatedRequests.length === 0 ? (
+          <Card className="border-none shadow-xl shadow-slate-200/50 p-16 text-center bg-white rounded-3xl">
+            <div className="bg-slate-50 w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-6">
+              <Search className="w-10 h-10 text-slate-300" />
+            </div>
+            <h3 className="font-black text-slate-800 text-xl uppercase tracking-tight">Nenhum pedido encontrado</h3>
+            <p className="text-slate-500 mt-2 font-medium">Tente ajustar sua busca ou inicie uma nova solicitação.</p>
           </Card>
         ) : (
-          requests.map((req) => {
-            const display = getStatusDisplay(req.status)
-            return (
-              <Card key={req.id} className="border-none shadow-xl shadow-slate-200/50 overflow-hidden hover:scale-[1.01] transition-transform">
-                <CardContent className="p-0">
-                  <div className="p-6 space-y-4">
-                    {/* Cabeçalho do Card */}
-                    <div className="flex justify-between items-start">
-                      <div>
-                        <div className="flex items-center gap-2 mb-1">
-                          <h3 className="font-black text-xl text-slate-900">{req.type}</h3>
-                          <Badge className="bg-slate-100 text-slate-600 font-bold hover:bg-slate-200">x{req.quantity}</Badge>
+          <>
+            {paginatedRequests.map((req) => {
+              const display = getStatusDisplay(req.status)
+              return (
+                <Card key={req.id} className="border-none shadow-xl shadow-slate-200/60 overflow-hidden hover:scale-[1.01] transition-all rounded-3xl group">
+                  <CardContent className="p-0">
+                    <div className="p-8 space-y-6">
+                      <div className="flex justify-between items-start">
+                        <div className="space-y-1">
+                          <div className="flex items-center gap-2">
+                             <span className="text-[10px] font-black uppercase tracking-[0.2em] text-blue-600 bg-blue-50 px-2 py-0.5 rounded-md">
+                               Pedido #{req.id.slice(-5).toUpperCase()}
+                             </span>
+                          </div>
+                          <h3 className="font-black text-2xl text-slate-900 tracking-tight">
+                            {req.sector}
+                          </h3>
                         </div>
-                        <p className="text-sm font-medium text-slate-500">Destino: <span className="text-slate-700">{req.sector}</span></p>
+                        <Badge variant="outline" className={`flex items-center gap-1.5 px-4 py-1.5 font-black text-[10px] uppercase shadow-sm ${display.color}`}>
+                          {display.icon}
+                          {display.text}
+                        </Badge>
                       </div>
-                      <Badge variant="outline" className={`flex items-center gap-1.5 px-3 py-1 font-bold ${display.color}`}>
-                        {display.icon}
-                        {display.text}
-                      </Badge>
-                    </div>
 
-                    {/* Motivo e Data */}
-                    <div className="flex flex-col sm:flex-row justify-between sm:items-end gap-4 bg-slate-50 p-4 rounded-xl border border-slate-100">
-                      <div>
-                        <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">Motivo do Pedido</p>
-                        <p className="text-sm text-slate-700 italic">"{req.reason}"</p>
+                      <div className="space-y-3">
+                        {req.items?.map((item: any) => (
+                          <div key={item.id} className="bg-slate-50/50 p-4 rounded-2xl border border-slate-100 flex justify-between items-center group-hover:bg-white group-hover:border-blue-100 transition-colors">
+                            <div className="flex items-center gap-3">
+                              <div className="bg-white p-2 rounded-lg border border-slate-100 font-black text-blue-600 text-xs">
+                                {item.quantity}x
+                              </div>
+                              <div>
+                                <p className="font-bold text-slate-800 text-sm">{item.type}</p>
+                                <p className="text-[10px] text-slate-400 font-medium italic">"{item.reason || 'Necessidade de setor'}"</p>
+                              </div>
+                            </div>
+                            <div className="text-[10px] font-black text-slate-300 uppercase tracking-widest">
+                               {item.status.replace('_', ' ')}
+                            </div>
+                          </div>
+                        ))}
                       </div>
-                      <div className="flex items-center gap-1.5 text-xs font-bold text-slate-400 whitespace-nowrap">
+
+                      <div className="flex items-center gap-2 text-[10px] font-black text-slate-400 uppercase tracking-widest pt-2 border-t border-slate-50">
                         <CalendarDays className="w-3.5 h-3.5" />
-                        {format(new Date(req.createdAt), "dd 'de' MMM, HH:mm", { locale: ptBR })}
+                        {format(new Date(req.createdAt), "dd 'de' MMMM 'às' HH:mm", { locale: ptBR })}
                       </div>
                     </div>
-                  </div>
 
-                  {/* Barra de Progresso visual (tipo iFood/Mercado Livre) */}
-                  <div className="h-1.5 w-full bg-slate-100">
-                    <div className={`h-full transition-all duration-1000 ${display.bar}`} />
-                  </div>
-                </CardContent>
-              </Card>
-            )
-          })
+                    <div className="h-2 w-full bg-slate-100">
+                      <div className={`h-full transition-all duration-1000 ease-in-out ${display.bar}`} />
+                    </div>
+                  </CardContent>
+                </Card>
+              )
+            })}
+
+            {/* CONTROLES DE PAGINAÇÃO */}
+            <div className="flex items-center justify-between bg-white p-4 rounded-2xl shadow-md border border-slate-100">
+              <span className="text-xs font-black text-slate-400 uppercase tracking-widest ml-4">
+                Página {currentPage} de {totalPages}
+              </span>
+              <div className="flex gap-2">
+                <Button 
+                  variant="ghost" 
+                  size="sm" 
+                  disabled={currentPage === 1}
+                  onClick={() => setCurrentPage(p => p - 1)}
+                  className="rounded-xl hover:bg-slate-100"
+                >
+                  <ChevronLeft className="w-5 h-5 mr-1" /> Anterior
+                </Button>
+                <Button 
+                  variant="ghost" 
+                  size="sm" 
+                  disabled={currentPage === totalPages}
+                  onClick={() => setCurrentPage(p => p + 1)}
+                  className="rounded-xl hover:bg-slate-100"
+                >
+                  Próxima <ChevronRight className="w-5 h-5 ml-1" />
+                </Button>
+              </div>
+            </div>
+          </>
         )}
       </div>
+
+      <p className="text-center text-slate-300 text-[10px] font-black uppercase tracking-[0.5em] mt-12">
+        IBCC Oncologia • Setor de Hotelaria
+      </p>
     </div>
   )
 }

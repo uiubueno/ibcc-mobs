@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
-import { sendMail } from '@/lib/mail' // O "carteiro" que envia o e-mail
+import { sendMail } from '@/lib/mail'
 
 // GET: Lista as solicitações
 export async function GET(req: NextRequest) {
@@ -15,7 +15,7 @@ export async function GET(req: NextRequest) {
     const requestsList = await prisma.request.findMany({
       where,
       include: {
-        furniture: true,
+        items: { include: { furniture: true } }, // Agora ele puxa a lista de itens dentro do pedido
         user: { select: { name: true, email: true } }
       },
       orderBy: { createdAt: 'desc' }
@@ -28,7 +28,7 @@ export async function GET(req: NextRequest) {
   }
 }
 
-// POST: Cria uma nova solicitação e NOTIFICA o William
+// POST: Cria o "Envelope" de solicitação com vários itens dentro
 export async function POST(req: NextRequest) {
   const session = await auth()
   
@@ -38,38 +38,52 @@ export async function POST(req: NextRequest) {
 
   try {
     const body = await req.json()
-    const { type, sector, reason } = body
+    const { sector, items } = body // 'items' é o Array do carrinho
 
-    if (!type || !sector || !reason) {
-      return NextResponse.json({ error: 'Preencha todos os campos obrigatórios.' }, { status: 400 })
+    if (!sector || !items || items.length === 0) {
+      return NextResponse.json({ error: 'Preencha o setor e adicione itens ao pedido.' }, { status: 400 })
     }
 
+    // Cria o Pedido (Envelope) e os Itens de uma vez só
     const newRequest = await prisma.request.create({
       data: {
         userId: session.user.id,
-        type: type,
         sector: sector,
-        reason: reason,
         status: 'PENDENTE',
-        quantity: 1
+        items: {
+          create: items.map((item: any) => ({
+            type: item.type,
+            quantity: item.quantity,
+            reason: item.reason
+          }))
+        }
+      },
+      include: {
+        items: true
       }
     })
 
+    // Monta uma listinha em HTML para o seu e-mail
+    const itemsHtmlList = items.map((item: any) => 
+      `<li><strong>${item.quantity}x ${item.type}</strong> <br/> <em>Motivo: ${item.reason}</em></li>`
+    ).join('')
+
     // --- FEATURE INSANA: NOTIFICAÇÃO POR E-MAIL ---
-    // Enviando para o seu e-mail de trabalho
     try {
       await sendMail({
-        to: 'william.peixoto@ibcc.org.br', // Ajuste para o seu e-mail exato do trabalho
-        subject: `🚨 Nova Solicitação: ${type} - ${sector}`,
+        to: 'william.peixoto@ibcc.org.br',
+        subject: `🚨 Novo Pedido Múltiplo: ${sector}`,
         html: `
           <div style="font-family: sans-serif; color: #333;">
-            <h2 style="color: #2563eb;">Nova Solicitação de Mobiliário</h2>
-            <p>O coordenador <strong>${session.user.name}</strong> acabou de abrir um chamado.</p>
+            <h2 style="color: #2563eb;">Novo Pedido de Mobiliário</h2>
+            <p>O coordenador <strong>${session.user.name}</strong> acabou de abrir um chamado para o setor <strong>${sector}</strong>.</p>
             <hr />
-            <p><strong>Item:</strong> ${type}</p>
-            <p><strong>Setor:</strong> ${sector}</p>
-            <p><strong>Motivo:</strong> "${reason}"</p>
+            <h3>Itens Solicitados:</h3>
+            <ul>
+              ${itemsHtmlList}
+            </ul>
             <hr />
+            <br />
             <a href="${process.env.NEXTAUTH_URL}/admin/requests" 
                style="background: #2563eb; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px; font-weight: bold;">
                Analisar no Painel
@@ -78,7 +92,6 @@ export async function POST(req: NextRequest) {
         `
       })
     } catch (mailError) {
-      // Se o e-mail falhar, logamos o erro mas não travamos o pedido do usuário
       console.error("Erro ao enviar e-mail de notificação:", mailError)
     }
 

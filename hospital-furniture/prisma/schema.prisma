@@ -22,6 +22,7 @@ enum FurnitureStatus {
 
 enum RequestStatus {
   PENDENTE      // Aguardando análise da gerência
+  EM_COMPRA     // NOVO STATUS: Aprovado, mas aguardando suprimentos/compras
   EM_SEPARACAO  // Aprovado, hotelaria está preparando o item
   EM_TRANSITO   // Saiu do almoxarifado rumo ao setor
   ENTREGUE      // Chegou no destino final
@@ -58,30 +59,51 @@ model Furniture {
   patrimony String?         
   createdAt DateTime        @default(now())
   updatedAt DateTime        @updatedAt
-  requests  Request[]
-  movements Movement[]
+  
+  // O móvel agora se vincula diretamente ao item do pedido
+  requestItems RequestItem[] 
+  movements    Movement[]
 
   @@map("furniture")
 }
 
+// ----------------------------------------------------------------------
+// O "ENVELOPE" (CABEÇALHO DO PEDIDO)
+// ----------------------------------------------------------------------
 model Request {
   id          String        @id @default(cuid())
   userId      String
-  type        String        // O tipo de item solicitado (ex: "Maca")
-  furnitureId String?       // Fica nulo até o William vincular um patrimônio na entrega
-  quantity    Int           @default(1)
-  reason      String
-  sector      String
+  sector      String        // Setor destino de todo o pedido
   status      RequestStatus @default(PENDENTE)
   notes       String?       
   reviewedAt  DateTime?
   createdAt   DateTime      @default(now())
   updatedAt   DateTime      @updatedAt
 
-  user      User       @relation(fields: [userId], references: [id])
-  furniture Furniture? @relation(fields: [furnitureId], references: [id])
+  user        User          @relation(fields: [userId], references: [id])
+  items       RequestItem[] // Relação 1 para N: Um pedido tem VÁRIOS itens
 
   @@map("requests")
+}
+
+// ----------------------------------------------------------------------
+// OS "ITENS DO CARRINHO" 
+// ----------------------------------------------------------------------
+model RequestItem {
+  id          String        @id @default(cuid())
+  requestId   String        // ID do envelope pai
+  type        String        // O tipo de item solicitado (ex: "Maca", "Cadeira")
+  quantity    Int           @default(1)
+  reason      String        // Motivo específico para este item
+  status      RequestStatus @default(PENDENTE) // A COLUNA NOVA ESTÁ AQUI
+  
+  // Fica nulo até você vincular um patrimônio na entrega (opcional)
+  furnitureId String?   
+
+  request     Request    @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  furniture   Furniture? @relation(fields: [furnitureId], references: [id])
+
+  @@map("request_items")
 }
 
 model Movement {

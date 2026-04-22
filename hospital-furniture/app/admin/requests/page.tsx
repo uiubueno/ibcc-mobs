@@ -3,7 +3,6 @@
 import { useState, useEffect } from 'react'
 import { toast } from 'sonner'
 import { 
-  LayoutDashboard, 
   Clock, 
   CheckCircle2, 
   MapPin, 
@@ -13,7 +12,8 @@ import {
   PackageSearch,
   Check,
   XCircle,
-  Settings2
+  Settings2,
+  ShoppingCart
 } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -23,7 +23,8 @@ import {
   DialogContent, 
   DialogHeader, 
   DialogTitle, 
-  DialogDescription 
+  DialogDescription, 
+  DialogFooter
 } from "@/components/ui/dialog"
 
 export default function AdminRequestsPage() {
@@ -31,152 +32,194 @@ export default function AdminRequestsPage() {
   const [inventory, setInventory] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   
-  // Estados para o Modal de Entrega
   const [selectedRequest, setSelectedRequest] = useState<any>(null)
+  const [openTriage, setOpenTriage] = useState(false)
+  const [itemStatuses, setItemStatuses] = useState<Record<string, string>>({})
+
+  const [selectedItemToDeliver, setSelectedItemToDeliver] = useState<any>(null)
   const [openDeliver, setOpenDeliver] = useState(false)
 
   const fetchData = async () => {
-    const [resReq, resInv] = await Promise.all([
-      fetch('/api/requests'),
-      fetch('/api/furniture')
-    ])
-    setRequests(await resReq.json())
-    setInventory(await resInv.json())
-    setLoading(false)
+    try {
+      const [resReq, resInv] = await Promise.all([
+        fetch('/api/requests'),
+        fetch('/api/furniture')
+      ])
+      const reqData = await resReq.json()
+      const invData = await resInv.json()
+      
+      setRequests(Array.isArray(reqData) ? reqData : [])
+      setInventory(Array.isArray(invData) ? invData : [])
+    } catch (e) {
+      toast.error("Erro ao carregar dados do painel.")
+    } finally {
+      setLoading(false)
+    }
   }
 
   useEffect(() => { fetchData() }, [])
 
-  // Nova função: Apenas aprova (muda status para EM_SEPARACAO)
-  const handleApprove = async (id: string) => {
+  const openTriageModal = (req: any) => {
+    setSelectedRequest(req)
+    const initialStatuses: Record<string, string> = {}
+    req.items?.forEach((item: any) => {
+      initialStatuses[item.id] = 'EM_SEPARACAO' 
+    })
+    setItemStatuses(initialStatuses)
+    setOpenTriage(true)
+  }
+
+  const handleUpdateItemStatus = (itemId: string, status: string) => {
+    setItemStatuses(prev => ({ ...prev, [itemId]: status }))
+  }
+
+  const confirmTriage = async () => {
     toast.promise(
-      fetch(`/api/requests/${id}/deliver`, { 
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status: 'EM_SEPARACAO' }) 
-      }),
+      (async () => {
+        const res = await fetch(`/api/requests/${selectedRequest.id}/triage`, { 
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ itemStatuses }) 
+        })
+        if (!res.ok) {
+          const err = await res.json()
+          throw new Error(err.error || 'Falha na triagem')
+        }
+        return res.json()
+      })(),
       {
-        loading: 'Aprovando solicitação...',
+        loading: 'Processando triagem e enviando e-mail...',
         success: () => {
+          setOpenTriage(false)
           fetchData()
-          return 'Solicitação aprovada. Movida para a fila de Separação!'
+          return 'Triagem finalizada! O coordenador foi notificado.'
         },
-        error: 'Erro ao aprovar solicitação.'
+        error: (err) => `Erro: ${err.message}`
       }
     )
   }
 
-  // Nova função: Apenas recusa (muda status para RECUSADO)
-  const handleReject = async (id: string) => {
-    if (!confirm("Tem certeza que deseja recusar essa solicitação?")) return;
-
+  const handleRejectFullRequest = async (id: string) => {
+    if (!confirm("Tem certeza que deseja recusar TODO esse pedido?")) return;
     toast.promise(
-      fetch(`/api/requests/${id}/deliver`, { 
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status: 'RECUSADO' })
-      }),
+      (async () => {
+        const res = await fetch(`/api/requests/${id}/deliver`, { 
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ status: 'RECUSADO' })
+        })
+        if (!res.ok) throw new Error('Erro ao recusar')
+        return res.json()
+      })(),
       {
-        loading: 'Recusando solicitação...',
-        success: () => {
-          fetchData()
-          return 'Solicitação recusada e removida da fila.'
-        },
-        error: 'Erro ao recusar solicitação.'
+        loading: 'Recusando pedido...',
+        success: () => { fetchData(); return 'Pedido recusado.' },
+        error: 'Erro ao recusar.'
       }
     )
   }
 
   const handleDeliver = async (furnitureId: string) => {
     toast.promise(
-      fetch(`/api/requests/${selectedRequest.id}/deliver`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ furnitureId, status: 'ENTREGUE' }) 
-      }),
+      (async () => {
+        const res = await fetch(`/api/requests/items/${selectedItemToDeliver.id}/deliver`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ furnitureId, status: 'ENTREGUE' }) 
+        })
+        if (!res.ok) throw new Error('Erro na entrega')
+        return res.json()
+      })(),
       {
-        loading: 'Vinculando patrimônio e atualizando setor...',
+        loading: 'Vinculando e atualizando estoque...',
         success: () => {
           setOpenDeliver(false)
           fetchData()
-          return 'Item entregue e rastreado com sucesso! 🚚'
+          return 'Item entregue com sucesso! 🚚'
         },
-        error: 'Erro ao finalizar entrega.'
+        error: (err) => `Erro: ${err.message}`
       }
     )
   }
 
+  // --- LOGICA DE FILTRAGEM DOS CARDS ---
   const pendingRequests = requests.filter(r => r.status === 'PENDENTE')
-  const separationRequests = requests.filter(r => r.status === 'EM_SEPARACAO')
-  const completedRequests = requests.filter(r => r.status === 'ENTREGUE')
+  
+  const separationItems = requests.flatMap(req => 
+    (req.items || []).filter((item: any) => item.status === 'EM_SEPARACAO')
+      .map((item: any) => ({ ...item, sector: req.sector }))
+  )
+
+  const purchaseItems = requests.flatMap(req => 
+    (req.items || []).filter((item: any) => item.status === 'EM_COMPRA')
+      .map((item: any) => ({ ...item, sector: req.sector, requestId: req.id }))
+  )
+  
+  const completedItems = requests.flatMap(req => 
+    (req.items || []).filter((item: any) => item.status === 'ENTREGUE')
+      .map((item: any) => ({ ...item, sector: req.sector }))
+  )
 
   return (
-    <div className="p-8 max-w-7xl mx-auto space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
+    <div className="p-8 max-w-7xl mx-auto space-y-10 animate-in fade-in duration-700">
       
       <header className="flex justify-between items-end border-b pb-6">
         <div>
-          <h1 className="text-3xl font-black text-slate-900 tracking-tight">Painel de Atendimento</h1>
+          <h1 className="text-3xl font-black text-slate-900 tracking-tight uppercase">Painel Hotelaria</h1>
           <p className="text-slate-500 font-medium italic mt-1">Gestão de Fluxo Hospitalar IBCC</p>
         </div>
-        <div className="flex gap-2">
-          <Badge variant="outline" className="bg-amber-50 text-amber-700 border-amber-200 py-2 px-4 rounded-lg font-bold shadow-sm">
-            {pendingRequests.length} PENDENTES
+        <div className="flex gap-3">
+          <Badge className="bg-amber-500 text-white py-2 px-4 rounded-lg font-bold shadow-md">
+            {pendingRequests.length} NOVOS PEDIDOS
           </Badge>
-          <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200 py-2 px-4 rounded-lg font-bold shadow-sm">
-            {separationRequests.length} EM SEPARAÇÃO
-          </Badge>
-          <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200 py-2 px-4 rounded-lg font-bold shadow-sm">
-            {completedRequests.length} ENTREGUES
+          <Badge className="bg-blue-600 text-white py-2 px-4 rounded-lg font-bold shadow-md">
+            {separationItems.length} P/ ENTREGAR
           </Badge>
         </div>
       </header>
 
-      <div className="grid grid-cols-1 lg:grid-cols-1 gap-10">
+      <div className="grid grid-cols-1 gap-12">
         
-        {/* PASSO 1: TRIAGEM (PENDENTES) */}
+        {/* PASSO 1: TRIAGEM */}
         <section className="space-y-4">
-          <div className="flex items-center justify-between">
-            <h2 className="text-sm font-black text-slate-500 uppercase tracking-[0.2em] flex items-center gap-2">
-              <Clock className="w-4 h-4 text-amber-500" /> Aguardando Análise (Triagem)
-            </h2>
-            <span className="text-xs text-slate-400 font-medium">Aceite ou recuse a necessidade do setor.</span>
-          </div>
+          <h2 className="text-xs font-black text-slate-400 uppercase tracking-[0.3em] flex items-center gap-2">
+            <Clock className="w-4 h-4 text-amber-500" /> Passo 1: Triagem de Pedidos
+          </h2>
           
-          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
             {pendingRequests.length === 0 && (
-              <Card className="col-span-full border-dashed p-10 flex flex-col items-center justify-center bg-slate-50/50">
-                <CheckCircle2 className="w-8 h-8 text-slate-300 mb-2" />
-                <p className="text-slate-400 font-bold italic text-sm">Nenhuma solicitação aguardando análise.</p>
+              <Card className="col-span-full border-dashed p-12 flex flex-col items-center justify-center bg-slate-50/50">
+                <CheckCircle2 className="w-10 h-10 text-slate-200 mb-2" />
+                <p className="text-slate-400 font-bold italic">Nenhum pedido novo no radar.</p>
               </Card>
             )}
 
             {pendingRequests.map((req) => (
-              <Card key={req.id} className="group hover:shadow-lg transition-all duration-300 border-l-4 border-l-amber-400 border-t-0 border-b-0 border-r-0 rounded-l-none">
-                <CardContent className="p-5 space-y-4">
-                  <div className="flex justify-between items-start">
+              <Card key={req.id} className="group hover:shadow-xl transition-all border-l-8 border-l-amber-500 shadow-sm">
+                <CardContent className="p-6 space-y-4">
+                  <div className="flex justify-between items-start border-b border-slate-100 pb-4">
                     <div>
-                      <Badge className="bg-amber-100 text-amber-700 mb-2 uppercase text-[9px] font-black">{req.type}</Badge>
-                      <h3 className="font-black text-lg text-slate-900 leading-tight">{req.sector}</h3>
+                      <h3 className="font-black text-xl text-slate-900 uppercase">{req.sector}</h3>
+                      <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest mt-1">Solicitante: {req.user?.name}</p>
                     </div>
+                    <Badge className="bg-slate-900 text-white px-3 py-1">{req.items?.length || 0} ITENS NO CARRINHO</Badge>
                   </div>
                   
-                  <p className="text-sm text-slate-600 bg-slate-50 p-3 rounded-lg border border-slate-100 italic">
-                    "{req.reason}"
-                  </p>
+                  <div className="space-y-2">
+                    {req.items?.map((item: any) => (
+                      <div key={item.id} className="bg-slate-50 p-3 rounded-xl border border-slate-100 flex items-center justify-between">
+                        <span className="font-bold text-slate-800">{item.quantity}x {item.type}</span>
+                        <span className="text-[10px] text-slate-400 italic">"{item.reason}"</span>
+                      </div>
+                    ))}
+                  </div>
 
                   <div className="flex gap-2 pt-2">
-                    <Button 
-                      onClick={() => handleReject(req.id)}
-                      variant="outline"
-                      className="flex-1 text-red-600 hover:bg-red-50 hover:text-red-700 border-red-200"
-                    >
-                      <XCircle className="w-4 h-4 mr-2" /> Recusar
+                    <Button onClick={() => handleRejectFullRequest(req.id)} variant="ghost" className="text-red-500 hover:bg-red-50 font-bold">
+                      <XCircle className="w-4 h-4 mr-2" /> Recusar Tudo
                     </Button>
-                    <Button 
-                      onClick={() => handleApprove(req.id)}
-                      className="flex-1 bg-slate-900 hover:bg-slate-800 text-white"
-                    >
-                      <Check className="w-4 h-4 mr-2 text-green-400" /> Aprovar
+                    <Button onClick={() => openTriageModal(req)} className="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-black">
+                      ANALISAR PEDIDO <ArrowRight className="w-4 h-4 ml-2" />
                     </Button>
                   </div>
                 </CardContent>
@@ -185,42 +228,32 @@ export default function AdminRequestsPage() {
           </div>
         </section>
 
-        {/* PASSO 2: SEPARAÇÃO E ENTREGA */}
+        {/* PASSO 2: SEPARAÇÃO */}
         <section className="space-y-4">
-          <div className="flex items-center justify-between">
-            <h2 className="text-sm font-black text-slate-500 uppercase tracking-[0.2em] flex items-center gap-2">
-              <Settings2 className="w-4 h-4 text-blue-500" /> Fila de Separação (Aprovados)
-            </h2>
-            <span className="text-xs text-slate-400 font-medium">Vincule o patrimônio para despachar.</span>
-          </div>
+          <h2 className="text-xs font-black text-slate-400 uppercase tracking-[0.3em] flex items-center gap-2">
+            <Settings2 className="w-4 h-4 text-blue-500" /> Passo 2: Fila de Separação (Estoque)
+          </h2>
 
           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-            {separationRequests.length === 0 && (
+            {separationItems.length === 0 && (
               <Card className="col-span-full border-dashed p-10 flex flex-col items-center justify-center bg-slate-50/50">
-                <PackageSearch className="w-8 h-8 text-slate-300 mb-2" />
-                <p className="text-slate-400 font-bold italic text-sm">Fila de separação vazia.</p>
+                <PackageSearch className="w-8 h-8 text-slate-200" />
+                <p className="text-slate-400 font-bold italic text-xs">Nada para despachar no momento.</p>
               </Card>
             )}
 
-            {separationRequests.map((req) => (
-              <Card key={req.id} className="group hover:shadow-xl transition-all duration-300 border-l-4 border-l-blue-500 bg-blue-50/30">
+            {separationItems.map((item: any) => (
+              <Card key={item.id} className="border-l-4 border-l-blue-600 bg-white shadow-md">
                 <CardContent className="p-5 space-y-4">
                   <div className="flex justify-between items-start">
                     <div>
-                      <Badge className="bg-blue-100 text-blue-700 mb-2 uppercase text-[9px] font-black">{req.type}</Badge>
-                      <h3 className="font-black text-xl text-slate-900 leading-tight">{req.sector}</h3>
+                      <Badge className="bg-blue-50 text-blue-700 mb-1 font-black text-[9px] uppercase border-blue-100">{item.sector}</Badge>
+                      <h3 className="font-black text-lg text-slate-900">{item.quantity}x {item.type}</h3>
                     </div>
-                    <div className="bg-blue-100 p-2 rounded-lg text-blue-600">
-                      <Truck className="w-5 h-5" />
-                    </div>
+                    <Truck className="w-5 h-5 text-blue-600" />
                   </div>
-
-                  <Button 
-                    onClick={() => { setSelectedRequest(req); setOpenDeliver(true); }}
-                    className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold transition-colors group shadow-md shadow-blue-500/20"
-                  >
-                    Vincular e Entregar
-                    <ArrowRight className="w-4 h-4 ml-2 group-hover:translate-x-1 transition-transform" />
+                  <Button onClick={() => { setSelectedItemToDeliver(item); setOpenDeliver(true); }} className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold">
+                    VINCULAR PATRIMÔNIO
                   </Button>
                 </CardContent>
               </Card>
@@ -228,92 +261,155 @@ export default function AdminRequestsPage() {
           </div>
         </section>
 
-
-        {/* PASSO 3: HISTÓRICO RECENTE */}
-        <section className="space-y-4 pt-4">
-          <h2 className="text-sm font-black text-slate-400 uppercase tracking-[0.2em] flex items-center gap-2">
-            <CheckCircle2 className="w-4 h-4" /> Entregas Recentes
+        {/* PASSO 3: COMPRAS (NOVA SEÇÃO!) */}
+        <section className="space-y-4">
+          <h2 className="text-xs font-black text-slate-400 uppercase tracking-[0.3em] flex items-center gap-2">
+            <ShoppingCart className="w-4 h-4 text-amber-600" /> Passo 3: Itens Aguardando Compra
           </h2>
-          <div className="bg-white rounded-2xl border border-slate-100 overflow-hidden shadow-sm">
+          <Card className="border-2 border-amber-100 bg-amber-50/30 overflow-hidden shadow-sm">
+            {purchaseItems.length === 0 ? (
+              <p className="p-8 text-center text-slate-400 italic text-sm">Não há pendências de compra.</p>
+            ) : (
+              <div className="divide-y divide-amber-100">
+                {purchaseItems.map((item: any) => (
+                  <div key={item.id} className="p-5 flex items-center justify-between hover:bg-white transition-colors">
+                    <div className="flex items-center gap-4">
+                      <div className="bg-amber-100 p-2.5 rounded-xl text-amber-600">
+                        <ShoppingCart className="w-5 h-5" />
+                      </div>
+                      <div>
+                        <p className="font-black text-slate-900">{item.quantity}x {item.type}</p>
+                        <p className="text-[10px] text-slate-500 font-bold uppercase">SETOR: {item.sector}</p>
+                      </div>
+                    </div>
+                    <Button 
+                      size="sm" 
+                      className="bg-amber-600 hover:bg-amber-700 text-white font-bold text-[10px] rounded-lg"
+                      onClick={async () => {
+                         const res = await fetch(`/api/requests/${item.requestId}/triage`, {
+                            method: 'PATCH',
+                            headers: {'Content-Type': 'application/json'},
+                            body: JSON.stringify({ itemStatuses: { [item.id]: 'EM_SEPARACAO' } })
+                         })
+                         if (res.ok) {
+                           fetchData()
+                           toast.success("Item movido para Separação!")
+                         }
+                      }}
+                    >
+                      CHEGOU DA COMPRA
+                    </Button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </Card>
+        </section>
+
+        {/* PASSO 4: HISTÓRICO */}
+        <section className="space-y-4">
+          <h2 className="text-xs font-black text-slate-400 uppercase tracking-[0.3em] flex items-center gap-2">
+            <CheckCircle2 className="w-4 h-4 text-green-500" /> Entregas Recentes
+          </h2>
+          <Card className="border-none shadow-sm overflow-hidden bg-white">
             <table className="w-full text-left">
-              <thead className="bg-slate-50 text-[10px] font-black text-slate-400 uppercase">
+              <thead className="bg-slate-50 text-[10px] font-black text-slate-400 uppercase tracking-widest">
                 <tr>
                   <th className="px-6 py-4">Setor</th>
-                  <th className="px-6 py-4">Item Entregue</th>
+                  <th className="px-6 py-4">Mobiliário</th>
                   <th className="px-6 py-4">Patrimônio</th>
                   <th className="px-6 py-4 text-right">Status</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-50">
-                {completedRequests.slice(0, 5).map(req => (
-                  <tr key={req.id} className="hover:bg-slate-50/50 transition-colors">
+                {completedItems.slice(0, 10).map((item: any) => (
+                  <tr key={item.id} className="hover:bg-slate-50/50 transition-colors">
+                    <td className="px-6 py-4 font-bold text-slate-700 text-sm">{item.sector}</td>
+                    <td className="px-6 py-4 text-sm font-medium">{item.quantity}x {item.type}</td>
                     <td className="px-6 py-4">
-                      <div className="flex items-center gap-2">
-                        <MapPin className="w-3 h-3 text-slate-400" />
-                        <span className="font-bold text-slate-700">{req.sector}</span>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 text-sm text-slate-600 font-medium">{req.type}</td>
-                    <td className="px-6 py-4">
-                      <Badge variant="outline" className="font-mono text-blue-600 border-blue-100 bg-blue-50">
-                        {req.furniture?.patrimony || 'S/N'}
+                      <Badge variant="outline" className="font-mono text-blue-600 bg-blue-50 border-blue-100">
+                        {item.furniture?.patrimony || 'S/N'}
                       </Badge>
                     </td>
                     <td className="px-6 py-4 text-right">
-                      <Badge className="bg-green-100 text-green-700 hover:bg-green-100 font-black text-[9px]">CONCLUÍDO</Badge>
+                      <Badge className="bg-green-100 text-green-700 font-black text-[9px]">ENTREGUE</Badge>
                     </td>
                   </tr>
                 ))}
               </tbody>
             </table>
-          </div>
+          </Card>
         </section>
       </div>
 
+      {/* MODAL TRIAGEM */}
+      <Dialog open={openTriage} onOpenChange={setOpenTriage}>
+        <DialogContent className="max-w-3xl">
+          <DialogHeader>
+            <DialogTitle className="text-2xl font-black">Análise de Itens</DialogTitle>
+            <DialogDescription className="font-medium text-slate-500">
+              O coordenador será notificado por e-mail com a decisão final de cada item.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="py-4 space-y-3 max-h-[450px] overflow-y-auto pr-2">
+            {selectedRequest?.items?.map((item: any) => (
+              <div key={item.id} className={`p-4 rounded-xl border-2 flex flex-col md:flex-row gap-4 justify-between items-center transition-colors ${itemStatuses[item.id] === 'EM_SEPARACAO' ? 'bg-green-50 border-green-200' : itemStatuses[item.id] === 'EM_COMPRA' ? 'bg-amber-50 border-amber-200' : 'bg-red-50 border-red-200'}`}>
+                <div className="flex-1">
+                  <p className="font-black text-slate-900 leading-tight">{item.quantity}x {item.type}</p>
+                  <p className="text-[11px] text-slate-500 italic mt-1">Motivo: {item.reason}</p>
+                </div>
+                <div className="flex gap-1 bg-white p-1 rounded-xl border shadow-sm h-fit">
+                  {['EM_SEPARACAO', 'EM_COMPRA', 'RECUSADO'].map((st) => (
+                    <button
+                      key={st}
+                      onClick={() => handleUpdateItemStatus(item.id, st)}
+                      className={`px-4 py-2 rounded-lg text-[9px] font-black transition-all ${itemStatuses[item.id] === st ? 'bg-slate-900 text-white' : 'text-slate-400 hover:bg-slate-50'}`}
+                    >
+                      {st === 'EM_SEPARACAO' ? 'ESTOQUE' : st === 'EM_COMPRA' ? 'COMPRAR' : 'RECUSAR'}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+          <DialogFooter className="border-t pt-4">
+            <Button variant="outline" onClick={() => setOpenTriage(false)}>CANCELAR</Button>
+            <Button onClick={confirmTriage} className="bg-blue-600 text-white font-black px-8">FINALIZAR TRIAGEM</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* MODAL VINCULAR PATRIMÔNIO */}
       <Dialog open={openDeliver} onOpenChange={setOpenDeliver}>
         <DialogContent className="max-w-2xl">
           <DialogHeader>
-            <DialogTitle className="text-2xl font-black">Vincular Ativo</DialogTitle>
+            <DialogTitle className="text-2xl font-black">Entrega de Ativo</DialogTitle>
             <DialogDescription className="font-medium">
-              Selecione qual <span className="text-blue-600">{selectedRequest?.type}</span> será enviada para o setor <span className="font-black text-slate-900">{selectedRequest?.sector}</span>.
+              Escolha qual patrimônio de <span className="text-blue-600 font-bold">{selectedItemToDeliver?.type}</span> será despachado agora.
             </DialogDescription>
           </DialogHeader>
-
           <div className="py-4 space-y-4">
-            <div className="relative">
-              <Search className="absolute left-3 top-3 w-4 h-4 text-slate-400" />
-              <input 
-                className="w-full bg-slate-50 border-none rounded-xl py-2.5 pl-10 text-sm focus:ring-2 focus:ring-blue-500 transition-all"
-                placeholder="Filtrar por patrimônio ou modelo..."
-              />
-            </div>
-
             <div className="grid grid-cols-1 gap-2 max-h-[350px] overflow-y-auto pr-2">
               {inventory
-                .filter(i => i.type === selectedRequest?.type && (i.status === 'NOVO' || i.status === 'USADO') && i.quantity > 0)
+                .filter(i => i.type === selectedItemToDeliver?.type && (i.status === 'NOVO' || i.status === 'USADO') && i.quantity > 0)
                 .map(item => (
                   <button
                     key={item.id}
                     onClick={() => handleDeliver(item.id)}
-                    className="flex items-center justify-between p-4 rounded-xl border border-slate-100 bg-white hover:border-blue-500 hover:bg-blue-50 transition-all group text-left"
+                    className="flex items-center justify-between p-4 rounded-xl border-2 border-slate-100 bg-white hover:border-blue-500 hover:bg-blue-50 transition-all group"
                   >
-                    <div>
+                    <div className="text-left">
                       <p className="font-black text-slate-900">{item.name}</p>
-                      <p className="text-xs text-slate-500">Patrimônio: <span className="font-mono font-bold text-blue-600">{item.patrimony || 'Sem número'}</span></p>
+                      <p className="text-xs text-slate-500">Patrimônio: <span className="font-mono font-bold text-blue-600">{item.patrimony || 'S/N'}</span></p>
                     </div>
-                    <div className="flex items-center gap-3">
-                       <Badge variant="outline" className="text-[9px] font-bold">{item.status}</Badge>
-                       <div className="bg-slate-100 p-2 rounded-lg group-hover:bg-blue-600 group-hover:text-white transition-colors">
-                         <PackageSearch className="w-4 h-4" />
-                       </div>
-                    </div>
+                    <Badge variant="outline" className="text-[10px] font-black uppercase">{item.status}</Badge>
                   </button>
                 ))
               }
-              {inventory.filter(i => i.type === selectedRequest?.type && (i.status === 'NOVO' || i.status === 'USADO')).length === 0 && (
-                <div className="p-8 text-center bg-red-50 rounded-2xl border border-red-100">
-                  <p className="text-red-600 font-bold text-sm">Atenção: Não há {selectedRequest?.type} disponíveis no momento!</p>
-                  <p className="text-xs text-red-400 mt-1">Verifique o estoque ou a oficina de manutenção.</p>
+              {inventory.filter(i => i.type === selectedItemToDeliver?.type && (i.status === 'NOVO' || i.status === 'USADO')).length === 0 && (
+                <div className="p-10 text-center bg-red-50 rounded-2xl border border-red-100">
+                  <p className="text-red-600 font-black text-sm uppercase">Estoque Esgotado!</p>
+                  <p className="text-[10px] text-red-400 mt-1">Nenhum ativo disponível no momento.</p>
                 </div>
               )}
             </div>
