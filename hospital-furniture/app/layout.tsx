@@ -3,13 +3,18 @@ import { Inter } from "next/font/google";
 import "./globals.css";
 import { auth } from "@/lib/auth";
 import { Navbar } from "@/components/Navbar";
-import { Toaster } from "@/components/ui/sonner"; // <-- O nosso sistema de notificações premium
+import { Toaster } from "@/components/ui/sonner";
 
 const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
   title: "IBCC - Hotelaria e Logística",
   description: "Sistema de Gestão de Mobiliário",
+  icons: {
+    icon: '/logo-ibcc.png?v=2',
+    shortcut: '/logo-ibcc.png?v=2',
+    apple: '/logo-ibcc.png?v=2',
+  },
 };
 
 export default async function RootLayout({

@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { signIn } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
+import Image from 'next/image'
 
 export default function LoginPage() {
   const [email, setEmail] = useState('')
@@ -24,7 +25,7 @@ export default function LoginPage() {
     })
 
     if (result?.error) {
-      setError('Email ou senha inválidos')
+      setError('Email ou senha inválidos. Tente novamente.')
       setLoading(false)
       return
     }
@@ -35,37 +36,59 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-slate-100">
-      <div className="bg-white p-8 rounded-xl shadow-md w-full max-w-md">
-        <h1 className="text-2xl font-bold text-center text-slate-800 mb-6">
-          🏥 MobHosp Logística
-        </h1>
+    <div className="min-h-screen flex flex-col items-center justify-center bg-[#f8fafc] p-4">
+      <div className="bg-white p-10 rounded-3xl shadow-xl shadow-slate-200/50 w-full max-w-md border border-slate-100">
+        
+        {/* CABEÇALHO COM LOGO OFICIAL */}
+        <div className="flex flex-col items-center mb-10">
+          <div className="relative w-24 h-24 mb-4">
+            <Image 
+              src="/logo-ibcc.png" 
+              alt="Logo IBCC Oncologia" 
+              fill
+              className="object-contain" 
+              priority
+            />
+          </div>
+          <h1 className="text-2xl font-black text-slate-900 tracking-tight uppercase">
+            Hotelaria
+          </h1>
+          <p className="text-sm text-slate-500 font-medium mt-1">
+            Gestão de Mobiliário e Ativos
+          </p>
+        </div>
 
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <form onSubmit={handleSubmit} className="space-y-5">
           {error && (
-            <div className="bg-red-50 text-red-600 p-3 rounded text-sm text-center">
+            <div className="bg-red-50 border border-red-100 text-red-600 p-4 rounded-xl text-sm text-center font-medium animate-in fade-in slide-in-from-top-2">
               {error}
             </div>
           )}
 
-          <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1">Email</label>
+          <div className="space-y-1.5">
+            <label className="block text-xs font-black text-slate-500 uppercase tracking-widest">
+              E-mail Institucional
+            </label>
             <input
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              className="w-full border border-slate-300 rounded-lg px-3 py-2 outline-none focus:border-blue-500 text-black"
+              className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 outline-none focus:bg-white focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 text-slate-900 transition-all font-medium"
+              placeholder="seu.email@ibcc.org.br"
               required
             />
           </div>
 
-          <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1">Senha</label>
+          <div className="space-y-1.5">
+            <label className="block text-xs font-black text-slate-500 uppercase tracking-widest">
+              Senha de Acesso
+            </label>
             <input
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              className="w-full border border-slate-300 rounded-lg px-3 py-2 outline-none focus:border-blue-500 text-black"
+              className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 outline-none focus:bg-white focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 text-slate-900 transition-all font-medium"
+              placeholder="••••••••"
               required
             />
           </div>
@@ -73,12 +96,16 @@ export default function LoginPage() {
           <button
             type="submit"
             disabled={loading}
-            className="w-full bg-blue-600 text-white rounded-lg py-2 font-medium hover:bg-blue-700 disabled:opacity-50"
+            className="w-full bg-blue-600 text-white rounded-xl py-3.5 font-black uppercase tracking-widest hover:bg-blue-700 disabled:opacity-50 transition-all shadow-lg shadow-blue-600/20 mt-4"
           >
-            {loading ? 'Entrando...' : 'Entrar'}
+            {loading ? 'Autenticando...' : 'Acessar Sistema'}
           </button>
         </form>
       </div>
+
+      <p className="text-center text-slate-400 text-[10px] font-black uppercase tracking-[0.3em] mt-12">
+        IBCC Oncologia • Hotelaria
+      </p>
     </div>
   )
 }

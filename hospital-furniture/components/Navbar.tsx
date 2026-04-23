@@ -1,6 +1,7 @@
 'use client'
 
 import Link from 'next/link'
+import Image from 'next/image'
 import { usePathname } from 'next/navigation'
 import { signOut } from 'next-auth/react'
 import { GlobalSearch } from './GlobalSearch'
@@ -11,7 +12,6 @@ import {
   Wrench, 
   LayoutDashboard, 
   LogOut,
-  Hospital,
   Users,
   ClipboardList 
 } from 'lucide-react'
@@ -42,17 +42,27 @@ export function Navbar({ userName, userRole }: { userName?: string | null, userR
     <nav className="bg-[#0f172a] border-b border-slate-800 sticky top-0 z-50 px-6 py-3">
       <div className="max-w-[1600px] mx-auto flex items-center justify-between gap-8">
         
-        {/* LOGO */}
+        {/* LOGO OFICIAL + TEXTO (Ajustado o espaçamento) */}
         <Link 
           href={userRole === 'ADMIN' ? "/" : "/solicitar"} 
-          className="flex items-center gap-3 group shrink-0"
+          className="flex items-center gap-4 shrink-0 hover:opacity-80 transition-opacity"
         >
-          <div className="bg-blue-600 p-2 rounded-xl group-hover:rotate-12 transition-transform">
-            <Hospital className="w-6 h-6 text-white" />
+          {/* Caixa da imagem ajustada para formato quadrado (w-11 h-11) */}
+          <div className="relative w-11 h-11">
+            <Image 
+              src="/logo-ibcc.png" 
+              alt="Logo IBCC Oncologia" 
+              fill
+              className="object-contain" 
+              priority
+            />
           </div>
-          <div className="flex flex-col">
-            <span className="font-black text-white leading-none text-lg tracking-tighter">IBCC</span>
-            <span className="text-[10px] text-blue-400 font-bold uppercase tracking-[0.2em]">Hotelaria</span>
+          
+          {/* Divisória e Texto */}
+          <div className="w-px h-8 bg-slate-700" />
+          <div className="flex flex-col justify-center">
+            <span className="font-black text-white leading-none text-xl tracking-tighter">IBCC</span>
+            <span className="text-[10px] text-blue-400 font-bold uppercase tracking-[0.2em] mt-0.5">Hotelaria</span>
           </div>
         </Link>
 
@@ -77,7 +87,6 @@ export function Navbar({ userName, userRole }: { userName?: string | null, userR
         {/* BUSCA E USUÁRIO */}
         <div className="flex items-center gap-6 grow justify-end">
           
-          {/* TRAVA DE SEGURANÇA NA BUSCA: Só aparece para ADMIN */}
           {userRole === 'ADMIN' && <GlobalSearch />}
 
           <div className="flex items-center gap-4 border-l border-slate-800 pl-6 shrink-0">
