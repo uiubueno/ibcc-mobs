@@ -5,19 +5,18 @@ import { toast } from 'sonner'
 import { 
   Clock, 
   CheckCircle2, 
-  MapPin, 
   Truck, 
-  Search,
   ArrowRight,
   PackageSearch,
-  Check,
   XCircle,
   Settings2,
-  ShoppingCart
+  ShoppingCart,
+  MessageSquareWarning
 } from 'lucide-react'
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
+import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
+import { Textarea } from "@/components/ui/textarea"
 import { 
   Dialog, 
   DialogContent, 
@@ -38,6 +37,11 @@ export default function AdminRequestsPage() {
 
   const [selectedItemToDeliver, setSelectedItemToDeliver] = useState<any>(null)
   const [openDeliver, setOpenDeliver] = useState(false)
+
+  // --- NOVOS ESTADOS PARA O MODAL DE RECUSA ---
+  const [openRejectModal, setOpenRejectModal] = useState(false)
+  const [rejectReason, setRejectReason] = useState('')
+  const [requestToReject, setRequestToReject] = useState<any>(null)
 
   const fetchData = async () => {
     try {
@@ -99,22 +103,41 @@ export default function AdminRequestsPage() {
     )
   }
 
-  const handleRejectFullRequest = async (id: string) => {
-    if (!confirm("Tem certeza que deseja recusar TODO esse pedido?")) return;
+  // --- NOVA FUNÇÃO QUE ABRE O MODAL DE RECUSA ---
+  const handleOpenRejectModal = (req: any) => {
+    setRequestToReject(req)
+    setRejectReason('') // Limpa a caixa de texto
+    setOpenRejectModal(true)
+  }
+
+  // --- NOVA FUNÇÃO QUE ENVIA A RECUSA COM MOTIVO ---
+  const confirmRejection = async () => {
+    if (!rejectReason.trim()) {
+      toast.error('Você precisa informar um motivo para a recusa.')
+      return
+    }
+
     toast.promise(
       (async () => {
-        const res = await fetch(`/api/requests/${id}/deliver`, { 
-          method: 'PATCH',
+        const res = await fetch(`/api/requests/${requestToReject.id}`, { 
+          method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ status: 'RECUSADO' })
+          body: JSON.stringify({ 
+            status: 'RECUSADO',
+            rejectionReason: rejectReason 
+          })
         })
         if (!res.ok) throw new Error('Erro ao recusar')
         return res.json()
       })(),
       {
-        loading: 'Recusando pedido...',
-        success: () => { fetchData(); return 'Pedido recusado.' },
-        error: 'Erro ao recusar.'
+        loading: 'Registrando recusa e notificando setor...',
+        success: () => { 
+          setOpenRejectModal(false)
+          fetchData()
+          return 'Pedido recusado com justificativa!' 
+        },
+        error: 'Erro ao recusar pedido.'
       }
     )
   }
@@ -142,7 +165,6 @@ export default function AdminRequestsPage() {
     )
   }
 
-  // --- LOGICA DE FILTRAGEM DOS CARDS ---
   const pendingRequests = requests.filter(r => r.status === 'PENDENTE')
   
   const separationItems = requests.flatMap(req => 
@@ -215,7 +237,8 @@ export default function AdminRequestsPage() {
                   </div>
 
                   <div className="flex gap-2 pt-2">
-                    <Button onClick={() => handleRejectFullRequest(req.id)} variant="ghost" className="text-red-500 hover:bg-red-50 font-bold">
+                    {/* BOTÃO ALTERADO PARA ABRIR O MODAL NOVO */}
+                    <Button onClick={() => handleOpenRejectModal(req)} variant="ghost" className="text-red-500 hover:bg-red-50 font-bold">
                       <XCircle className="w-4 h-4 mr-2" /> Recusar Tudo
                     </Button>
                     <Button onClick={() => openTriageModal(req)} className="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-black">
@@ -261,7 +284,7 @@ export default function AdminRequestsPage() {
           </div>
         </section>
 
-        {/* PASSO 3: COMPRAS (NOVA SEÇÃO!) */}
+        {/* PASSO 3: COMPRAS */}
         <section className="space-y-4">
           <h2 className="text-xs font-black text-slate-400 uppercase tracking-[0.3em] flex items-center gap-2">
             <ShoppingCart className="w-4 h-4 text-amber-600" /> Passo 3: Itens Aguardando Compra
@@ -342,7 +365,42 @@ export default function AdminRequestsPage() {
         </section>
       </div>
 
-      {/* MODAL TRIAGEM */}
+      {/* --- NOVO MODAL: JUSTIFICATIVA DE RECUSA --- */}
+      <Dialog open={openRejectModal} onOpenChange={setOpenRejectModal}>
+        <DialogContent className="max-w-lg border-red-200">
+          <DialogHeader>
+            <DialogTitle className="text-xl font-black text-red-600 flex items-center gap-2">
+              <MessageSquareWarning className="w-5 h-5" /> Recusar Solicitação
+            </DialogTitle>
+            <DialogDescription className="font-medium text-slate-600 mt-2">
+              Por favor, informe ao setor <span className="font-bold text-slate-900">{requestToReject?.sector}</span> o motivo da recusa deste pedido.
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="py-4">
+            <label className="text-xs font-black text-slate-400 uppercase tracking-widest mb-2 block">
+              Justificativa Técnica
+            </label>
+            <Textarea 
+              placeholder="Ex: Item fora do padrão do hospital, ou verba não aprovada..."
+              className="min-h-[120px] resize-none focus-visible:ring-red-500"
+              value={rejectReason}
+              onChange={(e) => setRejectReason(e.target.value)}
+            />
+          </div>
+
+          <DialogFooter className="border-t pt-4">
+            <Button variant="ghost" onClick={() => setOpenRejectModal(false)} className="text-slate-500">
+              CANCELAR
+            </Button>
+            <Button onClick={confirmRejection} className="bg-red-600 hover:bg-red-700 text-white font-black">
+              CONFIRMAR RECUSA
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* MODAL TRIAGEM (MANTIDO) */}
       <Dialog open={openTriage} onOpenChange={setOpenTriage}>
         <DialogContent className="max-w-3xl">
           <DialogHeader>
@@ -379,7 +437,7 @@ export default function AdminRequestsPage() {
         </DialogContent>
       </Dialog>
 
-      {/* MODAL VINCULAR PATRIMÔNIO */}
+      {/* MODAL VINCULAR PATRIMÔNIO (MANTIDO) */}
       <Dialog open={openDeliver} onOpenChange={setOpenDeliver}>
         <DialogContent className="max-w-2xl">
           <DialogHeader>

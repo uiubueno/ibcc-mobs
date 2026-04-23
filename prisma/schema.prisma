@@ -37,13 +37,13 @@ enum MovementType {
 }
 
 model User {
-  id        String    @id @default(cuid())
+  id        String   @id @default(cuid())
   name      String
-  email     String    @unique
+  email     String   @unique
   password  String
-  role      Role      @default(USER)
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
+  role      Role     @default(USER)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
   requests  Request[]
 
   @@map("users")
@@ -71,17 +71,18 @@ model Furniture {
 // O "ENVELOPE" (CABEÇALHO DO PEDIDO)
 // ----------------------------------------------------------------------
 model Request {
-  id          String        @id @default(cuid())
-  userId      String
-  sector      String        // Setor destino de todo o pedido
-  status      RequestStatus @default(PENDENTE)
-  notes       String?       
-  reviewedAt  DateTime?
-  createdAt   DateTime      @default(now())
-  updatedAt   DateTime      @updatedAt
+  id              String        @id @default(cuid())
+  userId          String
+  sector          String        // Setor destino de todo o pedido
+  status          RequestStatus @default(PENDENTE)
+  notes           String?       
+  rejectionReason String?       // <-- COLUNA NOVA ADICIONADA AQUI!
+  reviewedAt      DateTime?
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
 
-  user        User          @relation(fields: [userId], references: [id])
-  items       RequestItem[] // Relação 1 para N: Um pedido tem VÁRIOS itens
+  user            User          @relation(fields: [userId], references: [id])
+  items           RequestItem[] // Relação 1 para N: Um pedido tem VÁRIOS itens
 
   @@map("requests")
 }
@@ -95,7 +96,7 @@ model RequestItem {
   type        String        // O tipo de item solicitado (ex: "Maca", "Cadeira")
   quantity    Int           @default(1)
   reason      String        // Motivo específico para este item
-  status      RequestStatus @default(PENDENTE) // A COLUNA NOVA ESTÁ AQUI
+  status      RequestStatus @default(PENDENTE) 
   
   // Fica nulo até você vincular um patrimônio na entrega (opcional)
   furnitureId String?   
