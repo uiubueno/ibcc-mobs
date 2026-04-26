@@ -2,6 +2,8 @@
 
 import { useState, useEffect } from "react";
 import { toast } from "sonner";
+import { jsPDF } from "jspdf";
+import autoTable from "jspdf-autotable"; // <-- IMPORTAÇÃO CORRIGIDA AQUI
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -19,6 +21,7 @@ import {
   XCircle,
   Building2,
   PackageOpen,
+  Printer,
 } from "lucide-react";
 import {
   Dialog,
@@ -65,11 +68,98 @@ export default function MaintenancePage() {
     fetchData();
   }, []);
 
-  // AQUI FOI A CORREÇÃO: Tiramos a trava do "Almoxarifado Central".
-  // Agora puxa tudo que tá pronto pra uso e tem saldo no sistema!
   const availableStock = inventory.filter(
     (i) => (i.status === "NOVO" || i.status === "USADO") && i.quantity > 0,
   );
+
+  // --- FUNÇÃO PARA GERAR O PDF CORRIGIDA ---
+  const generatePDF = () => {
+    if (maintenanceItems.length === 0) {
+      return toast.error("Não há itens em manutenção para gerar a guia.");
+    }
+
+    const doc = new jsPDF();
+    const date = new Date().toLocaleDateString("pt-BR");
+
+    // Cabeçalho
+    doc.setFontSize(22);
+    doc.setTextColor(20, 50, 100); // Azul Escuro
+    doc.text("IBCC ONCOLOGIA", 14, 20);
+
+    doc.setFontSize(10);
+    doc.setTextColor(100);
+    doc.text("DEPARTAMENTO DE HOTELARIA", 14, 26);
+    doc.text(`Data de Emissão: ${date}`, 196, 26, { align: "right" });
+
+    // Título do Documento
+    doc.setDrawColor(200);
+    doc.line(14, 32, 196, 32);
+    doc.setFontSize(16);
+    doc.setTextColor(0);
+    doc.text("GUIA DE REMESSA PARA MANUTENÇÃO EXTERNA", 105, 45, {
+      align: "center",
+    });
+
+    // Informações
+    doc.setFontSize(11);
+    doc.text(`Destinatário: CORR Hospitalar`, 14, 58);
+    doc.text(`Origem: Unidade Central - Hotelaria`, 14, 64);
+
+    // Tabela de Itens
+    const tableRows = maintenanceItems.map((item) => [
+      item.name,
+      item.patrimony === "CTRL-TEMP"
+        ? "ITEM DE SETOR"
+        : item.patrimony || "S/N",
+      item.location || "Não informado",
+      "01",
+    ]);
+
+    // Chamada corrigida do autoTable
+    autoTable(doc, {
+      startY: 75,
+      head: [
+        ["Descrição do Mobiliário", "Patrimônio", "Setor de Origem", "Qtd"],
+      ],
+      body: tableRows,
+      theme: "grid",
+      headStyles: {
+        fillColor: [30, 41, 59],
+        textColor: [255, 255, 255],
+        fontStyle: "bold",
+      },
+      styles: { fontSize: 9, cellPadding: 4 },
+    });
+
+    const finalY = (doc as any).lastAutoTable.finalY + 30;
+
+    // Campos de Assinatura
+    doc.setFontSize(9);
+    doc.line(14, finalY, 70, finalY);
+    doc.text("Hotelaria (Emissor)", 14, finalY + 5);
+
+    doc.line(120, finalY, 186, finalY);
+    doc.text("Segurança / Portaria", 120, finalY + 5);
+
+    doc.line(67, finalY + 25, 133, finalY + 25);
+    doc.text("Transportador (CORR Hospitalar)", 100, finalY + 30, {
+      align: "center",
+    });
+
+    // Rodapé
+    doc.setFontSize(8);
+    doc.setTextColor(150);
+    doc.text(
+      "IBCC Oncologia - Gestão de Ativos e Logística Hospitalar",
+      105,
+      285,
+      { align: "center" },
+    );
+
+    // Baixar o arquivo
+    doc.save(`Guia_Remessa_CORR_${date.replace(/\//g, "-")}.pdf`);
+    toast.success("Guia de Remessa gerada com sucesso!");
+  };
 
   const handleAddCustom = () => {
     if (!customOrigin.trim() || !customName.trim()) {
@@ -94,7 +184,7 @@ export default function MaintenancePage() {
       isNew: false,
       realId: item.id,
       name: item.name,
-      originSector: item.location || "Sem Local", // Garante que não fique vazio na tela
+      originSector: item.location || "Sem Local",
     };
     setCart([...cart, newItem]);
     toast.success("Item do estoque adicionado!");
@@ -179,7 +269,7 @@ export default function MaintenancePage() {
 
   return (
     <div className="p-8 max-w-6xl mx-auto space-y-8 animate-in fade-in duration-500">
-      {/* HEADER DA TELA */}
+      {/* HEADER DA TELA - ATUALIZADO */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-slate-900 p-8 rounded-3xl shadow-xl">
         <div>
           <h1 className="text-3xl font-black text-white flex items-center gap-3">
@@ -189,12 +279,23 @@ export default function MaintenancePage() {
             Controle de mobiliários em manutenção externa.
           </p>
         </div>
-        <Button
-          onClick={() => setOpenSendModal(true)}
-          className="bg-orange-500 hover:bg-orange-600 text-white font-black h-12 px-6 rounded-xl shadow-lg shadow-orange-900/20"
-        >
-          <PackagePlus className="w-5 h-5 mr-2" /> NOVA REMESSA
-        </Button>
+        <div className="flex flex-col sm:flex-row gap-3 w-full md:w-auto">
+          {/* BOTÃO GERAR GUIA - AGORA BRANCO BEM CHAMATIVO */}
+          <Button
+            onClick={generatePDF}
+            className="bg-white text-slate-900 hover:bg-slate-100 font-black h-12 px-6 rounded-xl shadow-lg transition-all"
+          >
+            <Printer className="w-5 h-5 mr-2 text-blue-600" />
+            GERAR GUIA PDF
+          </Button>
+
+          <Button
+            onClick={() => setOpenSendModal(true)}
+            className="bg-orange-500 hover:bg-orange-600 text-white font-black h-12 px-6 rounded-xl shadow-lg shadow-orange-900/20"
+          >
+            <PackagePlus className="w-5 h-5 mr-2" /> NOVA REMESSA
+          </Button>
+        </div>
       </div>
 
       {/* LISTA DE ITENS */}
