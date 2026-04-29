@@ -22,6 +22,8 @@ import {
   Building2,
   PackageOpen,
   Printer,
+  ChevronLeft,
+  ChevronRight
 } from "lucide-react";
 import {
   Dialog,
@@ -46,14 +48,19 @@ export default function MaintenancePage() {
   const [maintenanceItems, setMaintenanceItems] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
+  // Estados do Modal de Remessa
   const [openSendModal, setOpenSendModal] = useState(false);
   const [cart, setCart] = useState<MaintenanceCartItem[]>([]);
-
   const [customOrigin, setCustomOrigin] = useState("");
   const [customName, setCustomName] = useState("");
   const [customPatrimony, setCustomPatrimony] = useState("");
   const [customQty, setCustomQty] = useState("1");
-  const [searchQuery, setSearchQuery] = useState("");
+  const [searchQuery, setSearchQuery] = useState(""); // Busca do estoque no modal
+
+  // NOVOS ESTADOS: Busca e Paginação do Pátio
+  const [patioSearch, setPatioSearch] = useState("");
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 5; // Quantidade de móveis por página
 
   const fetchData = async () => {
     try {
@@ -72,11 +79,30 @@ export default function MaintenancePage() {
     fetchData();
   }, []);
 
+  // Se digitar algo novo na busca do pátio, volta para a primeira página
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [patioSearch]);
+
   const availableStock = inventory.filter(
     (i) => (i.status === "NOVO" || i.status === "USADO") && i.quantity > 0,
   );
 
-  // --- Função MELHORADA para ler imagem proporcionalmente e não esmagar ---
+  // --- LÓGICA DE FILTRO E PAGINAÇÃO ---
+  const filteredPatio = maintenanceItems.filter((item) => {
+    const searchLower = patioSearch.toLowerCase();
+    const nameMatch = item.name.toLowerCase().includes(searchLower);
+    const originMatch = (item.location || "").toLowerCase().includes(searchLower);
+    const patrimonyMatch = (item.patrimony || "").toLowerCase().includes(searchLower);
+    return nameMatch || originMatch || patrimonyMatch;
+  });
+
+  const totalPages = Math.ceil(filteredPatio.length / itemsPerPage) || 1;
+  const currentPatioItems = filteredPatio.slice(
+    (currentPage - 1) * itemsPerPage,
+    currentPage * itemsPerPage
+  );
+
   const loadImageProportional = (url: string): Promise<{ base64: string, width: number, height: number }> => {
     return new Promise((resolve, reject) => {
       const img = new Image();
@@ -115,26 +141,18 @@ export default function MaintenancePage() {
       const date = now.toLocaleDateString("pt-BR");
       const time = now.toLocaleTimeString("pt-BR", { hour: '2-digit', minute: '2-digit' });
 
-      // Cor oficial solicitada: #5481D7 (RGB 84, 129, 215)
       const ibccBlue = [84, 129, 215] as [number, number, number];
 
-      // --- Tenta carregar o logo da pasta public com a proporção correta ---
       try {
         const logoData = await loadImageProportional("/logo-ibcc.png");
-        
-        // Define a largura desejada na folha (45mm é um bom tamanho)
         const pdfWidth = 45; 
-        // Calcula a altura proporcionalmente com a imagem original para NÃO esmagar
         const pdfHeight = (logoData.height * pdfWidth) / logoData.width;
-        
-        // Adiciona a imagem no PDF (X: 14, Y: 15)
         doc.addImage(logoData.base64, 'PNG', 14, 15, pdfWidth, pdfHeight);
 
-        // Aumenta o espaço para o resto do cabeçalho
         doc.setFontSize(9);
         doc.setTextColor(100);
         doc.setFont("helvetica", "normal");
-        const headerTextY = 15 + pdfHeight + 10; // Espaço sob a imagem
+        const headerTextY = 15 + pdfHeight + 10;
         doc.text("DEPARTAMENTO DE HOTELARIA", 14, headerTextY);
         doc.text(`Data de Emissão: ${date} às ${time}`, 196, headerTextY, { align: "right" });
 
@@ -142,14 +160,13 @@ export default function MaintenancePage() {
         const lineY = headerTextY + 5;
         doc.line(14, lineY, 196, lineY);
         doc.setFontSize(16);
-        doc.setTextColor(ibccBlue[0], ibccBlue[1], ibccBlue[2]); // Título em Azul IBCC
+        doc.setTextColor(ibccBlue[0], ibccBlue[1], ibccBlue[2]);
         doc.setFont("helvetica", "bold");
         const titleY = lineY + 15;
         doc.text("GUIA DE REMESSA PARA MANUTENÇÃO EXTERNA", 105, titleY, {
           align: "center",
         });
 
-        // Informações de Origem/Destino
         doc.setFontSize(11);
         doc.setTextColor(0);
         const destinatarrioY = titleY + 15;
@@ -183,14 +200,14 @@ export default function MaintenancePage() {
           body: tableRows,
           theme: "grid",
           headStyles: {
-            fillColor: ibccBlue, // Cabeçalho da tabela com o Azul IBCC
+            fillColor: ibccBlue,
             textColor: [255, 255, 255],
             fontStyle: "bold",
             halign: "center",
           },
-          styles: { fontSize: 9, cellPadding: 5, halign: "center" }, // Aumentei o padding para respirar
+          styles: { fontSize: 9, cellPadding: 5, halign: "center" },
           columnStyles: {
-            0: { halign: "left", cellWidth: 70 }, // Largura maior para a descrição
+            0: { halign: "left", cellWidth: 70 },
             1: { halign: "left" },
             2: { halign: "left" },
             3: { halign: "center", cellWidth: 20 },
@@ -198,7 +215,6 @@ export default function MaintenancePage() {
         });
 
       } catch (err) {
-        // Fallback: Logo estilizado em texto (caso a imagem falhe)
         console.error("Não foi possível carregar a imagem do logo. Usando fallback de texto.", err);
         doc.setFillColor(ibccBlue[0], ibccBlue[1], ibccBlue[2]);
         doc.rect(14, 15, 4, 15, 'F');
@@ -219,7 +235,7 @@ export default function MaintenancePage() {
 
       doc.setFontSize(9);
       doc.setFont("helvetica", "normal");
-      doc.setTextColor(0); // Garante que as assinaturas sejam pretas
+      doc.setTextColor(0);
 
       doc.line(14, finalY, 70, finalY);
       doc.text("Hotelaria (Emissor)", 14, finalY + 5);
@@ -397,24 +413,35 @@ export default function MaintenancePage() {
         </div>
       </div>
 
-      {/* LISTA DE ITENS */}
+      {/* BARRA DE PESQUISA DO PÁTIO */}
+      <div className="relative">
+        <Search className="absolute left-4 top-4 h-6 w-6 text-slate-400" />
+        <Input
+          placeholder="Pesquisar por nome, setor ou patrimônio no pátio da CORR..."
+          value={patioSearch}
+          onChange={(e) => setPatioSearch(e.target.value)}
+          className="pl-12 h-14 text-base bg-white shadow-sm border-2 rounded-2xl focus-visible:ring-orange-500"
+        />
+      </div>
+
+      {/* LISTA DE ITENS PAGINADA */}
       <div className="grid grid-cols-1 gap-4">
         {loading ? (
           <div className="flex flex-col justify-center items-center py-20 text-slate-400">
             <RefreshCcw className="w-8 h-8 animate-spin mb-4" />
             <p className="font-bold">Consultando pátio...</p>
           </div>
-        ) : maintenanceItems.length === 0 ? (
+        ) : filteredPatio.length === 0 ? (
           <Card className="border-dashed border-2 bg-orange-50/30">
             <CardContent className="flex flex-col items-center justify-center p-16 text-center">
               <CheckCircle className="w-16 h-16 text-orange-200 mb-4" />
               <p className="text-orange-900/60 font-black text-lg uppercase tracking-widest">
-                Pátio Limpo
+                {patioSearch ? "Nenhum item encontrado" : "Pátio Limpo"}
               </p>
             </CardContent>
           </Card>
         ) : (
-          maintenanceItems.map((item) => (
+          currentPatioItems.map((item) => (
             <Card
               key={item.id}
               className="overflow-hidden border-2 border-orange-100 shadow-sm relative group"
@@ -467,6 +494,31 @@ export default function MaintenancePage() {
           ))
         )}
       </div>
+
+      {/* CONTROLES DE PAGINAÇÃO */}
+      {!loading && filteredPatio.length > itemsPerPage && (
+        <div className="flex justify-between items-center bg-white p-4 rounded-2xl shadow-sm border border-slate-200 mt-4">
+          <Button
+            variant="outline"
+            disabled={currentPage === 1}
+            onClick={() => setCurrentPage((prev) => prev - 1)}
+            className="font-bold border-slate-200"
+          >
+            <ChevronLeft className="w-4 h-4 mr-1" /> Anterior
+          </Button>
+          <span className="font-bold text-slate-500 text-sm">
+            Página {currentPage} de {totalPages}
+          </span>
+          <Button
+            variant="outline"
+            disabled={currentPage === totalPages}
+            onClick={() => setCurrentPage((prev) => prev + 1)}
+            className="font-bold border-slate-200"
+          >
+            Próxima <ChevronRight className="w-4 h-4 ml-1" />
+          </Button>
+        </div>
+      )}
 
       {/* MODAL GIGANTE: NOVA REMESSA */}
       <Dialog open={openSendModal} onOpenChange={setOpenSendModal}>
