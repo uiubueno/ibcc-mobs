@@ -120,3 +120,28 @@ model Movement {
 
   @@map("movements")
 }
+
+// ----------------------------------------------------------------------
+// MÓDULO DE ENXOVAL (TRAVESSEIROS)
+// ----------------------------------------------------------------------
+
+// Guarda o saldo atual (Vasos Comunicantes)
+model PillowInventory {
+  id              String   @id @default(cuid())
+  stockLung       Int      @default(0)   // Quantidade no Pulmão (Estoque Hotelaria)
+  stockCirculating Int      @default(0)   // Quantidade Rodando no Hospital
+  updatedAt       DateTime @updatedAt    // Última vez que alguém mexeu no saldo
+
+  @@map("pillow_inventory")
+}
+
+// Histórico de saídas da rouparia para o hospital
+model PillowMovement {
+  id          String   @id @default(cuid())
+  quantity    Int      // Quantidade despachada
+  destination String   // Setor destino (Ex: UTI, Quarto 302)
+  requester   String   // Quem buscou/solicitou
+  date        DateTime @default(now()) // Data e hora da saída
+
+  @@map("pillow_movements")
+}

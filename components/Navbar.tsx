@@ -13,7 +13,8 @@ import {
   LayoutDashboard, 
   LogOut,
   Users,
-  ClipboardList 
+  ClipboardList,
+  Bed // <-- Ícone do Enxoval importado aqui
 } from 'lucide-react'
 
 export function Navbar({ userName, userRole }: { userName?: string | null, userRole?: string | null }) {
@@ -77,6 +78,7 @@ export function Navbar({ userName, userRole }: { userName?: string | null, userR
             <>
               <div className="w-px h-4 bg-slate-800 mx-2" />
               <NavLink href="/admin/furniture" icon={Package}>Estoque</NavLink>
+              <NavLink href="/admin/enxoval" icon={Bed}>Enxoval</NavLink> {/* <-- Novo link do Enxoval inserido aqui */}
               <NavLink href="/admin/maintenance" icon={Wrench}>Manutenção</NavLink>
               <NavLink href="/admin/requests" icon={LayoutDashboard}>Painel</NavLink>
               <NavLink href="/admin/usuarios" icon={Users}>Usuários</NavLink>
