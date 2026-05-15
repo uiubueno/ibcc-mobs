@@ -1,5 +1,8 @@
-// Puxando o 'auth' direto do seu arquivo principal que já existe aí no trabalho
-import { auth } from './lib/auth' 
+import NextAuth from 'next-auth'
+import { authConfig } from '@/lib/auth.config'
+
+// Aqui tá o pulo do gato: puxando só o arquivo leve pra Vercel não reclamar do tamanho!
+const { auth } = NextAuth(authConfig)
 
 export default auth((req) => {
   const isLoggedIn = !!req.auth
