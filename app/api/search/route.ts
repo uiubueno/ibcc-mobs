@@ -25,7 +25,6 @@ export async function GET(req: NextRequest) {
           { sector: { contains: query, mode: 'insensitive' } }
         ]
       },
-      include: { furniture: true },
       take: 5
     })
   ])
