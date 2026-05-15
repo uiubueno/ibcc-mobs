@@ -1,30 +1,30 @@
 import NextAuth from 'next-auth'
 import { authConfig } from '@/lib/auth.config'
 
-// Aqui tá o pulo do gato: puxando só o arquivo leve pra Vercel não reclamar do tamanho!
 const { auth } = NextAuth(authConfig)
 
 export default auth((req) => {
   const isLoggedIn = !!req.auth
   const userRole = (req.auth?.user as any)?.role 
-  const isTryingToAccessAdmin = req.nextUrl.pathname.startsWith('/admin')
+  const { pathname } = req.nextUrl
 
-  // Se o cara tentar entrar na área da Hotelaria (/admin)
-  if (isTryingToAccessAdmin) {
-    // 1. Não tá logado? Vai pro login.
-    if (!isLoggedIn) {
-      return Response.redirect(new URL('/login', req.nextUrl))
-    }
+  // 1. Definimos o que é público e o que é restrito
+  const isPublicPage = pathname === '/login'
+  const isTryingToAccessAdmin = pathname.startsWith('/admin')
 
-    // 2. Tá logado, mas NÃO é ADMIN (ou seja, é Coordenador Solicitante)? 
-    // Chuta ele de volta pra tela inicial de solicitar/acompanhar.
-    if (userRole !== 'ADMIN') {
-      return Response.redirect(new URL('/', req.nextUrl)) 
-    }
+  // 2. BLOQUEIO GLOBAL: Se não estiver logado e não for a página de login, vai para o login
+  // Isso protege o /solicitar, a home / e qualquer outra página nova
+  if (!isLoggedIn && !isPublicPage) {
+    return Response.redirect(new URL('/login', req.nextUrl))
+  }
+
+  // 3. REGRA DO ADMIN: Se estiver logado mas tentar entrar no /admin sem ser ADMIN
+  if (isTryingToAccessAdmin && userRole !== 'ADMIN') {
+    return Response.redirect(new URL('/', req.nextUrl)) 
   }
 })
 
-// Aqui a gente avisa o porteiro quais portas ele deve vigiar
 export const config = {
+  // Mantemos o matcher para ignorar arquivos de imagem, css e api
   matcher: ['/((?!api|_next/static|_next/image|.*\\.png$).*)'],
 }
