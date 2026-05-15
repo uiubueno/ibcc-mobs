@@ -22,8 +22,7 @@ export async function GET(req: NextRequest) {
     prisma.request.findMany({
       where: {
         OR: [
-          { sector: { contains: query, mode: 'insensitive' } },
-          { reason: { contains: query, mode: 'insensitive' } },
+          { sector: { contains: query, mode: 'insensitive' } }
         ]
       },
       include: { furniture: true },
