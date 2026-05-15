@@ -10,7 +10,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
   // 1. Aguarda o ID ser resolvido
   const { id } = await params;
 
-  if (!session || session.user?.role !== 'ADMIN') {
+ if (!session || (session.user as any)?.role !== "ADMIN") {
     return NextResponse.json({ error: 'Acesso negado' }, { status: 403 })
   }
 

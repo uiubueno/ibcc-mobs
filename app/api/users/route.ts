@@ -7,7 +7,7 @@ import bcrypt from 'bcryptjs'
 export async function GET() {
   const session = await auth()
   
-  if (!session || session.user?.role !== 'ADMIN') {
+  if (!session || (session.user as any)?.role !== "ADMIN") {
     return NextResponse.json({ error: 'Acesso negado' }, { status: 401 })
   }
 
@@ -32,7 +32,7 @@ export async function GET() {
 export async function POST(req: NextRequest) {
   const session = await auth()
 
-  if (!session || session.user?.role !== 'ADMIN') {
+  if (!session || (session.user as any)?.role !== "ADMIN") {
     return NextResponse.json({ error: 'Acesso negado' }, { status: 401 })
   }
 

@@ -27,7 +27,7 @@ export default async function RootLayout({
   return (
     <html lang="pt-BR">
       <body className={`${inter.className} bg-slate-50 min-h-screen flex flex-col`}>
-        {session && <Navbar userName={session.user?.name} userRole={session.user?.role} />}
+       {session && <Navbar userName={session.user?.name} userRole={(session.user as any)?.role} />}
         
         <main className="flex-grow">
           {children}

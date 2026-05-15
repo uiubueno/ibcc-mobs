@@ -15,7 +15,7 @@ export default async function HomePage(props: {
   const session = await auth()
 
   if (!session) redirect('/login')
-  if (session.user?.role !== 'ADMIN') redirect('/solicitar')
+  if (!session || (session.user as any)?.role !== "ADMIN") redirect('/solicitar')
 
   const searchParams = await props.searchParams
   const { from, to } = searchParams

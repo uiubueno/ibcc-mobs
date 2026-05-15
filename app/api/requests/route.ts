@@ -8,7 +8,7 @@ export async function GET(req: NextRequest) {
   const session = await auth()
   if (!session) return NextResponse.json({ error: 'Não autorizado' }, { status: 401 })
 
-  const isAdmin = session.user?.role === 'ADMIN'
+ const isAdmin = (session.user as any)?.role === 'ADMIN'
   const where = isAdmin ? {} : { userId: session.user?.id }
 
   try {

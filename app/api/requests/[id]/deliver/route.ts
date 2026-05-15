@@ -11,7 +11,7 @@ export async function PATCH(
   const resolvedParams = await params;
   const id = resolvedParams.id; // ID DO ITEM
 
-  if (!session || session.user?.role !== "ADMIN") {
+  if (!session || (session.user as any)?.role !== "ADMIN") {
     return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
   }
 
