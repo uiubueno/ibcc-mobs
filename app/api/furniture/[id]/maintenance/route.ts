@@ -69,3 +69,5 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     return NextResponse.json({ error: 'Erro ao processar manutenção' }, { status: 500 })
   }
 }
+
+// empurrando para a vercel ler o codigo novo
