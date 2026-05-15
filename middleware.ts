@@ -3,7 +3,7 @@ import { auth } from './lib/auth'
 
 export default auth((req) => {
   const isLoggedIn = !!req.auth
-  const userRole = req.auth?.user?.role 
+  const userRole = (req.auth?.user as any)?.role 
   const isTryingToAccessAdmin = req.nextUrl.pathname.startsWith('/admin')
 
   // Se o cara tentar entrar na área da Hotelaria (/admin)
