@@ -6,7 +6,7 @@ import bcrypt from 'bcryptjs'
 // Atualizar um usuário (Nome, E-mail, Role ou Senha)
 export async function PATCH(request: Request, { params }: { params: Promise<{ id: string }> }) {
   const session = await auth()
-  if (session?.user?.role !== 'ADMIN') {
+  if ((session?.user as any)?.role !== 'ADMIN') {
     return NextResponse.json({ error: "Não autorizado" }, { status: 403 })
   }
 
@@ -44,7 +44,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
 // Deletar um usuário
 export async function DELETE(request: Request, { params }: { params: Promise<{ id: string }> }) {
   const session = await auth()
-  if (session?.user?.role !== 'ADMIN') {
+  if ((session?.user as any)?.role !== 'ADMIN') {
     return NextResponse.json({ error: "Não autorizado" }, { status: 403 })
   }
 
