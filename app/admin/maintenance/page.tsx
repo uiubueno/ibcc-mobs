@@ -55,12 +55,12 @@ export default function MaintenancePage() {
   const [customName, setCustomName] = useState("");
   const [customPatrimony, setCustomPatrimony] = useState("");
   const [customQty, setCustomQty] = useState("1");
-  const [searchQuery, setSearchQuery] = useState(""); // Busca do estoque no modal
+  const [searchQuery, setSearchQuery] = useState(""); 
 
-  // NOVOS ESTADOS: Busca e Paginação do Pátio
+  // Estados: Busca e Paginação do Pátio
   const [patioSearch, setPatioSearch] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
-  const itemsPerPage = 5; // Quantidade de móveis por página
+  const itemsPerPage = 5; 
 
   const fetchData = async () => {
     try {
@@ -79,7 +79,6 @@ export default function MaintenancePage() {
     fetchData();
   }, []);
 
-  // Se digitar algo novo na busca do pátio, volta para a primeira página
   useEffect(() => {
     setCurrentPage(1);
   }, [patioSearch]);
@@ -88,7 +87,6 @@ export default function MaintenancePage() {
     (i) => (i.status === "NOVO" || i.status === "USADO") && i.quantity > 0,
   );
 
-  // --- LÓGICA DE FILTRO E PAGINAÇÃO ---
   const filteredPatio = maintenanceItems.filter((item) => {
     const searchLower = patioSearch.toLowerCase();
     const nameMatch = item.name.toLowerCase().includes(searchLower);
@@ -215,20 +213,7 @@ export default function MaintenancePage() {
         });
 
       } catch (err) {
-        console.error("Não foi possível carregar a imagem do logo. Usando fallback de texto.", err);
-        doc.setFillColor(ibccBlue[0], ibccBlue[1], ibccBlue[2]);
-        doc.rect(14, 15, 4, 15, 'F');
-        doc.setFontSize(22);
-        doc.setTextColor(ibccBlue[0], ibccBlue[1], ibccBlue[2]);
-        doc.setFont("helvetica", "bold");
-        doc.text("IBCC", 22, 22);
-        doc.setFontSize(14);
-        doc.text("ONCOLOGIA", 22, 28);
-        doc.setFontSize(9);
-        doc.setTextColor(100);
-        doc.setFont("helvetica", "normal");
-        doc.text("DEPARTAMENTO DE HOTELARIA", 14, 38);
-        doc.text(`Data de Emissão: ${date} às ${time}`, 196, 38, { align: "right" });
+        console.error("Erro no logo do PDF.", err);
       }
 
       const finalY = (doc as any).lastAutoTable.finalY + 35;
@@ -308,7 +293,6 @@ export default function MaintenancePage() {
         for (const item of cart) {
           if (item.isNew) {
             const secretPatrimony = `${item.patrimony || "S/N"} [CTRL]`;
-
             const createRes = await fetch("/api/furniture", {
               method: "POST",
               headers: { "Content-Type": "application/json" },
@@ -320,7 +304,6 @@ export default function MaintenancePage() {
                 patrimony: secretPatrimony,
               }),
             });
-
             if (createRes.ok) {
               const createdItem = await createRes.json();
               await fetch(`/api/furniture/${createdItem.id}`, {
@@ -361,8 +344,7 @@ export default function MaintenancePage() {
   ) => {
     const isTemporary = item.patrimony && item.patrimony.includes("[CTRL]");
     const method = isTemporary && newStatus === "USADO" ? "DELETE" : "PATCH";
-    const body =
-      method === "PATCH" ? JSON.stringify({ status: newStatus }) : null;
+    const body = method === "PATCH" ? JSON.stringify({ status: newStatus }) : null;
 
     toast.promise(
       fetch(`/api/furniture/${item.id}`, {
@@ -384,43 +366,44 @@ export default function MaintenancePage() {
   };
 
   return (
-    <div className="p-8 max-w-6xl mx-auto space-y-8 animate-in fade-in duration-500">
+    <div className="p-4 md:p-8 max-w-6xl mx-auto space-y-6 md:space-y-8 animate-in fade-in duration-500">
+      
       {/* HEADER DA TELA */}
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-slate-900 p-8 rounded-3xl shadow-xl">
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-slate-900 p-6 md:p-8 rounded-2xl md:rounded-3xl shadow-xl">
         <div>
-          <h1 className="text-3xl font-black text-white flex items-center gap-3">
-            <Wrench className="text-orange-500 w-8 h-8" /> Pátio da CORR
+          <h1 className="text-2xl md:text-3xl font-black text-white flex items-center gap-2 md:gap-3">
+            <Wrench className="text-orange-500 w-6 h-6 md:w-8 md:h-8" /> Pátio da CORR
           </h1>
-          <p className="text-slate-400 mt-2 font-medium">
+          <p className="text-xs md:text-sm text-slate-400 mt-1 md:mt-2 font-medium">
             Controle de mobiliários em manutenção externa.
           </p>
         </div>
-        <div className="flex flex-col sm:flex-row gap-3 w-full md:w-auto">
+        <div className="flex flex-col sm:flex-row gap-2 md:gap-3 w-full md:w-auto">
           <Button
             onClick={generatePDF}
-            className="bg-white text-slate-900 hover:bg-slate-100 font-black h-12 px-6 rounded-xl shadow-lg transition-all"
+            className="w-full sm:w-auto bg-white text-slate-900 hover:bg-slate-100 font-black h-12 px-4 md:px-6 rounded-xl shadow-lg text-xs md:text-sm"
           >
-            <Printer className="w-5 h-5 mr-2 text-blue-600" />
+            <Printer className="w-4 h-4 md:w-5 md:h-5 mr-2 text-blue-600" />
             GERAR GUIA PDF
           </Button>
 
           <Button
             onClick={() => setOpenSendModal(true)}
-            className="bg-orange-500 hover:bg-orange-600 text-white font-black h-12 px-6 rounded-xl shadow-lg shadow-orange-900/20"
+            className="w-full sm:w-auto bg-orange-500 hover:bg-orange-600 text-white font-black h-12 px-4 md:px-6 rounded-xl shadow-lg shadow-orange-900/20 text-xs md:text-sm"
           >
-            <PackagePlus className="w-5 h-5 mr-2" /> NOVA REMESSA
+            <PackagePlus className="w-4 h-4 md:w-5 md:h-5 mr-2" /> NOVA REMESSA
           </Button>
         </div>
       </div>
 
       {/* BARRA DE PESQUISA DO PÁTIO */}
       <div className="relative">
-        <Search className="absolute left-4 top-4 h-6 w-6 text-slate-400" />
+        <Search className="absolute left-3 md:left-4 top-3.5 md:top-4 h-5 w-5 md:h-6 md:w-6 text-slate-400" />
         <Input
-          placeholder="Pesquisar por nome, setor ou patrimônio no pátio da CORR..."
+          placeholder="Pesquisar no pátio..."
           value={patioSearch}
           onChange={(e) => setPatioSearch(e.target.value)}
-          className="pl-12 h-14 text-base bg-white shadow-sm border-2 rounded-2xl focus-visible:ring-orange-500"
+          className="pl-10 md:pl-12 h-12 md:h-14 text-sm md:text-base bg-white shadow-sm border-2 rounded-xl md:rounded-2xl focus-visible:ring-orange-500"
         />
       </div>
 
@@ -428,14 +411,14 @@ export default function MaintenancePage() {
       <div className="grid grid-cols-1 gap-4">
         {loading ? (
           <div className="flex flex-col justify-center items-center py-20 text-slate-400">
-            <RefreshCcw className="w-8 h-8 animate-spin mb-4" />
-            <p className="font-bold">Consultando pátio...</p>
+            <RefreshCcw className="w-6 h-6 md:w-8 md:h-8 animate-spin mb-4" />
+            <p className="font-bold text-sm md:text-base">Consultando pátio...</p>
           </div>
         ) : filteredPatio.length === 0 ? (
           <Card className="border-dashed border-2 bg-orange-50/30">
-            <CardContent className="flex flex-col items-center justify-center p-16 text-center">
-              <CheckCircle className="w-16 h-16 text-orange-200 mb-4" />
-              <p className="text-orange-900/60 font-black text-lg uppercase tracking-widest">
+            <CardContent className="flex flex-col items-center justify-center p-8 md:p-16 text-center">
+              <CheckCircle className="w-12 h-12 md:w-16 md:h-16 text-orange-200 mb-4" />
+              <p className="text-orange-900/60 font-black text-sm md:text-lg uppercase tracking-widest">
                 {patioSearch ? "Nenhum item encontrado" : "Pátio Limpo"}
               </p>
             </CardContent>
@@ -446,49 +429,54 @@ export default function MaintenancePage() {
               key={item.id}
               className="overflow-hidden border-2 border-orange-100 shadow-sm relative group"
             >
-              <div className="flex flex-col md:flex-row md:items-center justify-between p-6 pt-8 gap-6">
-                <div className="flex items-start gap-4">
-                  <div className="bg-orange-500 p-3 rounded-xl shrink-0 shadow-inner">
-                    <Truck className="text-white w-6 h-6" />
+              <div className="flex flex-col md:flex-row md:items-center justify-between p-4 md:p-6 md:pt-8 gap-4 md:gap-6">
+                
+                {/* Informações do Item */}
+                <div className="flex items-start gap-3 md:gap-4">
+                  <div className="bg-orange-500 p-2 md:p-3 rounded-lg md:rounded-xl shrink-0 shadow-inner mt-1 md:mt-0">
+                    <Truck className="text-white w-4 h-4 md:w-6 md:h-6" />
                   </div>
-                  <div>
-                    <h3 className="font-black text-xl text-slate-900">
+                  <div className="min-w-0">
+                    <h3 className="font-black text-base md:text-xl text-slate-900 truncate">
                       {item.name}
-                      <span className="text-sm font-medium text-slate-400 ml-2">
+                      <span className="text-xs md:text-sm font-medium text-slate-400 ml-1 md:ml-2">
                         (Qtd: {item.quantity || 1})
                       </span>
                     </h3>
-                    <div className="flex flex-wrap gap-2 mt-2 text-xs font-bold">
-                      <span className="bg-blue-50 text-blue-700 px-2 py-1 rounded-md uppercase">
+                    <div className="flex flex-col sm:flex-row flex-wrap gap-1 md:gap-2 mt-2 text-[10px] md:text-xs font-bold">
+                      <span className="bg-blue-50 text-blue-700 px-2 py-1 rounded w-fit uppercase">
                         Origem: {item.location || "Não informada"}
                       </span>
                       {item.patrimony && item.patrimony.includes("[CTRL]") ? (
-                        <Badge className="bg-slate-900 text-white text-[9px]">
-                          ITEM DE SETOR: {item.patrimony.replace(" [CTRL]", "")}
+                        <Badge className="bg-slate-900 text-white text-[8px] md:text-[9px] w-fit">
+                          SETOR: {item.patrimony.replace(" [CTRL]", "")}
                         </Badge>
                       ) : (
-                        <span className="bg-slate-100 text-slate-600 px-2 py-1 rounded-md uppercase">
+                        <span className="bg-slate-100 text-slate-600 px-2 py-1 rounded w-fit uppercase">
                           Patrimônio: {item.patrimony || "S/N"}
                         </span>
                       )}
                     </div>
                   </div>
                 </div>
-                <div className="flex flex-col gap-2 shrink-0 border-t md:border-t-0 md:border-l border-slate-100 pt-4 md:pt-0 md:pl-6">
+
+                {/* Botões de Ação */}
+                <div className="flex flex-row md:flex-col gap-2 shrink-0 border-t md:border-t-0 md:border-l border-slate-100 pt-3 md:pt-0 md:pl-6 w-full md:w-auto">
                   <Button
                     onClick={() => handleReturnFromCorr(item, "USADO")}
-                    className="bg-green-600 hover:bg-green-700 font-bold h-10 w-full md:w-auto shadow-sm"
+                    className="flex-1 md:flex-none bg-green-600 hover:bg-green-700 font-bold h-10 shadow-sm text-[10px] md:text-xs px-2"
                   >
-                    <CheckCircle className="w-4 h-4 mr-2" /> DEVOLVER À ORIGEM
+                    <CheckCircle className="w-3 h-3 md:w-4 md:h-4 mr-1 md:mr-2" /> DEVOLVER
                   </Button>
                   <Button
                     onClick={() => handleReturnFromCorr(item, "CONDENADO")}
                     variant="ghost"
-                    className="text-red-500 hover:bg-red-50 font-bold h-10 text-xs"
+                    className="flex-1 md:flex-none text-red-500 hover:bg-red-50 font-bold h-10 text-[10px] md:text-xs px-2"
                   >
-                    <XCircle className="w-4 h-4 mr-2" /> CONDENAR
+                    <XCircle className="w-3 h-3 md:w-4 md:h-4 mr-1 md:mr-2" /> CONDENAR
                   </Button>
                 </div>
+
               </div>
             </Card>
           ))
@@ -497,80 +485,79 @@ export default function MaintenancePage() {
 
       {/* CONTROLES DE PAGINAÇÃO */}
       {!loading && filteredPatio.length > itemsPerPage && (
-        <div className="flex justify-between items-center bg-white p-4 rounded-2xl shadow-sm border border-slate-200 mt-4">
+        <div className="flex justify-between items-center bg-white p-3 md:p-4 rounded-xl md:rounded-2xl shadow-sm border border-slate-200 mt-4">
           <Button
             variant="outline"
             disabled={currentPage === 1}
             onClick={() => setCurrentPage((prev) => prev - 1)}
-            className="font-bold border-slate-200"
+            className="font-bold border-slate-200 text-xs md:text-sm h-8 md:h-10 px-2 md:px-4"
           >
-            <ChevronLeft className="w-4 h-4 mr-1" /> Anterior
+            <ChevronLeft className="w-3 h-3 md:w-4 md:h-4 mr-1" /> Anterior
           </Button>
-          <span className="font-bold text-slate-500 text-sm">
+          <span className="font-bold text-slate-500 text-[10px] md:text-sm">
             Página {currentPage} de {totalPages}
           </span>
           <Button
             variant="outline"
             disabled={currentPage === totalPages}
             onClick={() => setCurrentPage((prev) => prev + 1)}
-            className="font-bold border-slate-200"
+            className="font-bold border-slate-200 text-xs md:text-sm h-8 md:h-10 px-2 md:px-4"
           >
-            Próxima <ChevronRight className="w-4 h-4 ml-1" />
+            Próxima <ChevronRight className="w-3 h-3 md:w-4 md:h-4 ml-1" />
           </Button>
         </div>
       )}
 
       {/* MODAL GIGANTE: NOVA REMESSA */}
       <Dialog open={openSendModal} onOpenChange={setOpenSendModal}>
-        <DialogContent className="!max-w-[1200px] !w-[95vw] bg-slate-50 p-0 overflow-hidden">
-          <div className="p-6 md:p-8 border-b border-slate-200 bg-white flex justify-between items-center">
+        <DialogContent className="!max-w-[1200px] w-[95vw] md:w-[90vw] bg-slate-50 p-0 overflow-hidden rounded-2xl md:rounded-3xl">
+          <div className="p-4 md:p-6 lg:p-8 border-b border-slate-200 bg-white flex justify-between items-center">
             <div>
-              <DialogTitle className="text-2xl font-black flex items-center gap-3 text-slate-900">
-                <Truck className="text-orange-500 w-8 h-8" /> Montar Remessa
-                para CORR
+              <DialogTitle className="text-xl md:text-2xl font-black flex items-center gap-2 md:gap-3 text-slate-900">
+                <Truck className="text-orange-500 w-6 h-6 md:w-8 md:h-8" /> Montar Remessa
               </DialogTitle>
-              <DialogDescription className="font-medium text-slate-500 mt-1 text-base">
-                Cadastre ou selecione os móveis que o caminhão está levando
-                agora.
+              <DialogDescription className="font-medium text-slate-500 mt-1 text-xs md:text-base">
+                Cadastre ou selecione os móveis que o caminhão está levando.
               </DialogDescription>
             </div>
           </div>
 
-          <div className="p-6 md:p-8 grid grid-cols-1 lg:grid-cols-[1.2fr_1fr] gap-8 max-h-[75vh] overflow-y-auto overflow-x-hidden">
+          <div className="p-4 md:p-6 lg:p-8 grid grid-cols-1 lg:grid-cols-[1.2fr_1fr] gap-4 md:gap-8 max-h-[75vh] overflow-y-auto overflow-x-hidden">
+            
             {/* COLUNA ESQUERDA (FORMULÁRIOS) */}
-            <div className="space-y-8">
-              <div className="bg-blue-50/50 p-6 md:p-8 rounded-3xl border-2 border-blue-100 space-y-4">
-                <div className="flex items-center gap-3 text-blue-800">
-                  <Building2 className="w-6 h-6" />
-                  <Label className="font-black text-sm uppercase tracking-widest">
-                    Recolhido de Setor (Somente Controle)
+            <div className="space-y-4 md:space-y-8">
+              
+              {/* Form de Setor */}
+              <div className="bg-blue-50/50 p-4 md:p-6 lg:p-8 rounded-2xl md:rounded-3xl border-2 border-blue-100 space-y-3 md:space-y-4">
+                <div className="flex items-center gap-2 md:gap-3 text-blue-800">
+                  <Building2 className="w-5 h-5 md:w-6 md:h-6" />
+                  <Label className="font-black text-[10px] md:text-sm uppercase tracking-widest">
+                    Recolhido de Setor
                   </Label>
                 </div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 md:gap-4">
                   <Input
                     placeholder="Local (Ex: Recepção)"
                     value={customOrigin}
                     onChange={(e) => setCustomOrigin(e.target.value)}
-                    className="h-14 text-base bg-white shadow-sm"
+                    className="h-12 md:h-14 text-sm md:text-base bg-white shadow-sm"
                   />
                   <Input
                     placeholder="Móvel (Ex: Sofá)"
                     value={customName}
                     onChange={(e) => setCustomName(e.target.value)}
-                    className="h-14 text-base bg-white shadow-sm"
+                    className="h-12 md:h-14 text-sm md:text-base bg-white shadow-sm"
                   />
                 </div>
-                <div className="flex gap-4 mt-2">
+                <div className="flex gap-2 md:gap-4 mt-2">
                   <Input
-                    placeholder="Patrimônio (Opcional)"
+                    placeholder="Patrimônio (Opc.)"
                     value={customPatrimony}
                     onChange={(e) => {
                       setCustomPatrimony(e.target.value);
-                      if (e.target.value.trim() !== "") {
-                        setCustomQty("1");
-                      }
+                      if (e.target.value.trim() !== "") setCustomQty("1");
                     }}
-                    className="h-14 text-base bg-white shadow-sm flex-1"
+                    className="h-12 md:h-14 text-sm md:text-base bg-white shadow-sm flex-1"
                   />
                   <Input
                     type="number"
@@ -579,68 +566,58 @@ export default function MaintenancePage() {
                     value={customQty}
                     onChange={(e) => setCustomQty(e.target.value)}
                     disabled={customPatrimony.trim() !== ""}
-                    className="h-14 text-base bg-white shadow-sm w-24 text-center disabled:opacity-50 disabled:bg-slate-200"
+                    className="h-12 md:h-14 text-sm md:text-base bg-white shadow-sm w-16 md:w-24 text-center disabled:opacity-50"
                   />
                 </div>
                 <Button
                   onClick={handleAddCustom}
-                  className="w-full h-14 text-base bg-blue-600 hover:bg-blue-700 text-white font-bold shadow-md mt-2"
+                  className="w-full h-12 md:h-14 text-xs md:text-base bg-blue-600 hover:bg-blue-700 text-white font-bold shadow-md mt-2 rounded-xl"
                 >
-                  <Plus className="w-5 h-5 mr-2" /> ADICIONAR À REMESSA
+                  <Plus className="w-4 h-4 md:w-5 md:h-5 mr-1 md:mr-2" /> ADICIONAR À REMESSA
                 </Button>
               </div>
 
-              <div className="space-y-4">
-                <div className="flex items-center gap-3 text-slate-700">
-                  <PackageOpen className="w-6 h-6" />
-                  <Label className="font-black text-sm uppercase tracking-widest">
+              {/* Busca no Estoque */}
+              <div className="space-y-3 md:space-y-4">
+                <div className="flex items-center gap-2 md:gap-3 text-slate-700">
+                  <PackageOpen className="w-5 h-5 md:w-6 md:h-6" />
+                  <Label className="font-black text-[10px] md:text-sm uppercase tracking-widest">
                     Puxar do Estoque IBCC
                   </Label>
                 </div>
                 <div className="relative">
-                  <Search className="absolute left-4 top-4 h-6 w-6 text-slate-400" />
+                  <Search className="absolute left-3 md:left-4 top-3.5 md:top-4 h-5 w-5 md:h-6 md:w-6 text-slate-400" />
                   <Input
-                    placeholder="Pesquise por nome ou patrimônio no almoxarifado..."
+                    placeholder="Pesquise no almoxarifado..."
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
-                    className="pl-12 h-14 text-base bg-white shadow-sm"
+                    className="pl-10 md:pl-12 h-12 md:h-14 text-sm md:text-base bg-white shadow-sm rounded-xl"
                   />
                 </div>
-                <div className="border-2 border-slate-200 rounded-2xl bg-white max-h-[300px] overflow-y-auto divide-y">
+                <div className="border-2 border-slate-200 rounded-xl md:rounded-2xl bg-white max-h-[250px] md:max-h-[300px] overflow-y-auto divide-y">
                   {availableStock
-                    .filter(
-                      (i) =>
-                        i.name
-                          .toLowerCase()
-                          .includes(searchQuery.toLowerCase()) ||
-                        (i.patrimony &&
-                          i.patrimony
-                            .toLowerCase()
-                            .includes(searchQuery.toLowerCase())),
+                    .filter((i) =>
+                        i.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                        (i.patrimony && i.patrimony.toLowerCase().includes(searchQuery.toLowerCase())),
                     )
                     .map((item) => (
-                      <div
-                        key={item.id}
-                        className="flex justify-between items-center p-4 hover:bg-slate-50 transition-colors"
-                      >
+                      <div key={item.id} className="flex flex-col sm:flex-row justify-between sm:items-center p-3 md:p-4 hover:bg-slate-50 transition-colors gap-2 sm:gap-0">
                         <div>
-                          <p className="font-bold text-slate-900 text-base">
-                            {item.name}
-                          </p>
-                          <p className="text-xs text-slate-500 font-bold uppercase mt-1">
+                          <p className="font-bold text-slate-900 text-sm md:text-base truncate">{item.name}</p>
+                          <p className="text-[10px] md:text-xs text-slate-500 font-bold uppercase mt-0.5 md:mt-1">
                             Pat: {item.patrimony || "S/N"}
                           </p>
                         </div>
                         <Button
                           onClick={() => handleAddFromStock(item)}
-                          className="bg-slate-900 hover:bg-slate-800 text-white font-bold px-6"
+                          className="bg-slate-900 hover:bg-slate-800 text-white font-bold px-4 md:px-6 h-8 md:h-10 text-xs md:text-sm rounded-lg"
                         >
                           Selecionar
                         </Button>
                       </div>
                     ))}
                   {availableStock.length === 0 && (
-                    <div className="p-8 text-center text-slate-400 font-medium">
+                    <div className="p-6 md:p-8 text-center text-slate-400 font-medium text-xs md:text-sm">
                       Nenhum item disponível no estoque.
                     </div>
                   )}
@@ -649,78 +626,69 @@ export default function MaintenancePage() {
             </div>
 
             {/* COLUNA DIREITA (CARRINHO) */}
-            <div className="bg-slate-900 p-6 md:p-8 rounded-3xl shadow-2xl flex flex-col h-full min-h-[500px]">
-              <div className="flex justify-between items-end border-b border-white/10 pb-4 mb-6">
-                <Label className="font-black text-white text-sm uppercase tracking-widest">
+            <div className="bg-slate-900 p-4 md:p-6 lg:p-8 rounded-2xl md:rounded-3xl shadow-2xl flex flex-col h-full min-h-[400px] lg:min-h-[500px]">
+              <div className="flex justify-between items-end border-b border-white/10 pb-3 md:pb-4 mb-4 md:mb-6">
+                <Label className="font-black text-white text-[10px] md:text-sm uppercase tracking-widest">
                   Itens no Caminhão
                 </Label>
-                <Badge className="bg-orange-500 text-white text-sm">
+                <Badge className="bg-orange-500 text-white text-xs md:text-sm">
                   {cart.length}
                 </Badge>
               </div>
 
-              <div className="space-y-3 flex-1 overflow-y-auto pr-2">
+              <div className="space-y-2 md:space-y-3 flex-1 overflow-y-auto pr-1 md:pr-2">
                 {cart.length === 0 ? (
-                  <div className="h-full flex flex-col items-center justify-center text-white/30 space-y-4">
-                    <Truck className="w-16 h-16" />
-                    <p className="font-medium text-center">
-                      A remessa está vazia.
-                      <br />
-                      Adicione itens na lateral.
+                  <div className="h-full flex flex-col items-center justify-center text-white/30 space-y-3 md:space-y-4 py-8">
+                    <Truck className="w-12 h-12 md:w-16 md:h-16" />
+                    <p className="font-medium text-center text-xs md:text-base">
+                      A remessa está vazia.<br />Adicione itens.
                     </p>
                   </div>
                 ) : (
                   cart.map((item) => (
-                    <div
-                      key={item.id}
-                      className="flex justify-between items-center bg-white/5 p-5 rounded-2xl border border-white/10 hover:bg-white/10 transition-colors"
-                    >
-                      <div>
-                        <p className="font-black text-white text-base">
-                          {item.name}{" "}
-                          <span className="text-orange-400 ml-1">
-                            (x{item.quantity})
-                          </span>
+                    <div key={item.id} className="flex justify-between items-center bg-white/5 p-3 md:p-5 rounded-xl md:rounded-2xl border border-white/10">
+                      <div className="min-w-0 pr-2">
+                        <p className="font-black text-white text-sm md:text-base truncate">
+                          {item.name} <span className="text-orange-400 ml-1">(x{item.quantity})</span>
                         </p>
-                        <p className="text-xs text-slate-400 font-bold uppercase mt-1">
+                        <p className="text-[9px] md:text-xs text-slate-400 font-bold uppercase mt-1 truncate">
                           Origem: {item.originSector}
                         </p>
                         {item.patrimony && (
-                          <p className="text-xs text-slate-500 mt-1">
+                          <p className="text-[9px] md:text-xs text-slate-500 mt-0.5 truncate">
                             Pat: {item.patrimony}
                           </p>
                         )}
                       </div>
                       <button
-                        onClick={() =>
-                          setCart(cart.filter((c) => c.id !== item.id))
-                        }
-                        className="text-white/30 hover:text-red-400 transition-colors p-2 bg-black/20 rounded-xl"
+                        onClick={() => setCart(cart.filter((c) => c.id !== item.id))}
+                        className="text-white/30 hover:text-red-400 transition-colors p-2 md:p-2.5 bg-black/20 rounded-lg shrink-0"
                       >
-                        <Trash2 className="w-6 h-6" />
+                        <Trash2 className="w-4 h-4 md:w-5 md:h-5" />
                       </button>
                     </div>
                   ))
                 )}
               </div>
 
-              <div className="pt-6 mt-6 border-t border-white/10">
+              <div className="pt-4 md:pt-6 mt-4 md:mt-6 border-t border-white/10">
                 <Button
                   onClick={handleDispatch}
                   disabled={cart.length === 0}
-                  className="w-full bg-orange-500 hover:bg-orange-600 text-white font-black h-16 rounded-2xl text-lg shadow-xl shadow-orange-900/40 disabled:opacity-50"
+                  className="w-full bg-orange-500 hover:bg-orange-600 text-white font-black h-12 md:h-16 rounded-xl md:rounded-2xl text-xs md:text-lg shadow-xl disabled:opacity-50"
                 >
                   FECHAR LOTE E DESPACHAR
                 </Button>
                 <Button
                   variant="ghost"
                   onClick={() => setOpenSendModal(false)}
-                  className="w-full mt-3 text-slate-400 hover:text-white hover:bg-white/5 font-bold"
+                  className="w-full mt-2 md:mt-3 text-slate-400 hover:text-white hover:bg-white/5 font-bold text-xs md:text-sm h-10 md:h-12 rounded-xl"
                 >
                   CANCELAR REMESSA
                 </Button>
               </div>
             </div>
+            
           </div>
         </DialogContent>
       </Dialog>

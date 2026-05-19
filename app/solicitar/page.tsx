@@ -154,15 +154,12 @@ interface CartItem {
 export default function RequestPage() {
   const [availableTypes, setAvailableTypes] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-
   const [cart, setCart] = useState<CartItem[]>([]);
-
   const [sector, setSector] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
-  // --- NOVOS ESTADOS PARA O ITEM PERSONALIZADO ---
   const [isCustomRequest, setIsCustomRequest] = useState(false);
   const [customItemName, setCustomItemName] = useState("");
 
@@ -184,10 +181,7 @@ export default function RequestPage() {
 
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
-      if (
-        dropdownRef.current &&
-        !dropdownRef.current.contains(event.target as Node)
-      ) {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
         setIsDropdownOpen(false);
       }
     }
@@ -196,22 +190,12 @@ export default function RequestPage() {
   }, []);
 
   const addToCart = (type: string) => {
-    // Formata o texto para evitar espaços extras no começo e no fim
     const formattedType = type.trim();
-
     if (!formattedType) return;
 
-    const existing = cart.find(
-      (item) => item.type.toLowerCase() === formattedType.toLowerCase(),
-    );
+    const existing = cart.find((item) => item.type.toLowerCase() === formattedType.toLowerCase());
     if (existing) {
-      setCart(
-        cart.map((item) =>
-          item.type.toLowerCase() === formattedType.toLowerCase()
-            ? { ...item, quantity: item.quantity + 1 }
-            : item,
-        ),
-      );
+      setCart(cart.map((item) => item.type.toLowerCase() === formattedType.toLowerCase() ? { ...item, quantity: item.quantity + 1 } : item));
       toast.success(`${formattedType} adicionado!`, { icon: "🛒" });
     } else {
       setCart([...cart, { type: formattedType, quantity: 1, reason: "" }]);
@@ -219,7 +203,6 @@ export default function RequestPage() {
     }
   };
 
-  // --- FUNÇÃO PARA LIDAR COM A ADIÇÃO DO ITEM PERSONALIZADO ---
   const handleAddCustomItem = () => {
     if (!customItemName.trim()) {
       toast.error("Digite o nome do mobiliário antes de adicionar.");
@@ -227,27 +210,21 @@ export default function RequestPage() {
     }
     addToCart(customItemName);
     setCustomItemName("");
-    setIsCustomRequest(false); // Volta para o catálogo padrão
+    setIsCustomRequest(false); 
   };
 
   const updateCartItemReason = (type: string, newReason: string) => {
-    setCart(
-      cart.map((item) =>
-        item.type === type ? { ...item, reason: newReason } : item,
-      ),
-    );
+    setCart(cart.map((item) => item.type === type ? { ...item, reason: newReason } : item));
   };
 
   const updateCartItemQuantity = (type: string, delta: number) => {
-    setCart(
-      cart.map((item) => {
-        if (item.type === type) {
-          const newQty = item.quantity + delta;
-          return newQty > 0 ? { ...item, quantity: newQty } : item;
-        }
-        return item;
-      }),
-    );
+    setCart(cart.map((item) => {
+      if (item.type === type) {
+        const newQty = item.quantity + delta;
+        return newQty > 0 ? { ...item, quantity: newQty } : item;
+      }
+      return item;
+    }));
   };
 
   const removeFromCart = (type: string) => {
@@ -256,16 +233,9 @@ export default function RequestPage() {
 
   const handleRequest = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (cart.length === 0)
-      return toast.error("Seu pedido está vazio! Adicione itens do catálogo.");
-    if (!sector)
-      return toast.error("Por favor, pesquise e selecione o setor de destino!");
-
-    if (cart.some((item) => !item.reason.trim())) {
-      return toast.error(
-        "Por favor, preencha o motivo para todos os itens do pedido.",
-      );
-    }
+    if (cart.length === 0) return toast.error("Seu pedido está vazio! Adicione itens do catálogo.");
+    if (!sector) return toast.error("Por favor, pesquise e selecione o setor de destino!");
+    if (cart.some((item) => !item.reason.trim())) return toast.error("Por favor, preencha o motivo para todos os itens do pedido.");
 
     toast.promise(
       fetch("/api/requests", {
@@ -286,52 +256,51 @@ export default function RequestPage() {
     );
   };
 
-  const filteredSectors = SECTORS_IBCC.filter((s) =>
-    s.toLowerCase().includes(searchQuery.toLowerCase()),
-  );
+  const filteredSectors = SECTORS_IBCC.filter((s) => s.toLowerCase().includes(searchQuery.toLowerCase()));
 
   return (
     <div className="min-h-screen bg-[#f8fafc] pb-12 animate-in fade-in duration-700">
-      {/* HEADER PREMIUM */}
-      <div className="bg-slate-900 pt-12 pb-24 px-6">
-        <div className="max-w-4xl mx-auto flex items-center justify-between">
+      {/* HEADER PREMIUM - Responsivo */}
+      <div className="bg-slate-900 pt-8 pb-20 md:pt-12 md:pb-24 px-4 md:px-6">
+        <div className="max-w-4xl mx-auto flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div className="space-y-1">
-            <h1 className="text-3xl font-black text-white tracking-tight flex items-center gap-3">
-              <Package2 className="text-blue-500 w-8 h-8" />
+            <h1 className="text-2xl md:text-3xl font-black text-white tracking-tight flex items-center gap-3">
+              <Package2 className="text-blue-500 w-6 h-6 md:w-8 md:h-8 shrink-0" />
               Solicitação de Mobiliário
             </h1>
-            <p className="text-slate-400 font-medium">
+            <p className="text-slate-400 font-medium text-sm md:text-base">
               Hotelaria IBCC Oncologia
             </p>
           </div>
-          <Badge className="bg-blue-500/10 text-blue-400 border-blue-500/20 py-1.5 px-4 hidden sm:flex items-center gap-2">
+          {/* Badge flutuante ou fixa dependendo do tamanho da tela */}
+          <Badge className="bg-blue-500/10 text-blue-400 border-blue-500/20 py-1.5 px-4 flex items-center gap-2 w-fit self-start sm:self-auto">
             <ShoppingCart className="w-4 h-4" />
-            {cart.length}{" "}
-            {cart.length === 1 ? "item no pedido" : "itens no pedido"}
+            {cart.length} {cart.length === 1 ? "item no pedido" : "itens no pedido"}
           </Badge>
         </div>
       </div>
 
-      <div className="max-w-4xl mx-auto px-6 -mt-12">
+      <div className="max-w-4xl mx-auto px-4 md:px-6 -mt-10 md:-mt-12">
         <form onSubmit={handleRequest} className="space-y-6">
+          
           {/* PASSO 1: O DESTINO */}
-          <Card className="border-none shadow-2xl shadow-slate-200/60 !overflow-visible relative z-[9999]">
-            <CardContent className="p-6 space-y-4 !overflow-visible">
+          <Card className="border-none shadow-xl shadow-slate-200/60 !overflow-visible relative z-[9999]">
+            <CardContent className="p-4 md:p-6 space-y-4 !overflow-visible">
               <div className="flex items-center gap-2">
-                <span className="bg-blue-600 text-white w-6 h-6 rounded-full flex items-center justify-center text-xs font-black">
+                <span className="bg-blue-600 text-white w-6 h-6 rounded-full flex items-center justify-center text-xs font-black shrink-0">
                   1
                 </span>
-                <Label className="font-bold text-slate-800">
+                <Label className="font-bold text-slate-800 text-sm md:text-base leading-tight">
                   Para qual setor é este pedido?
                 </Label>
               </div>
 
               <div className="relative z-50" ref={dropdownRef}>
                 <div className="relative">
-                  <Search className="absolute left-3 top-3.5 h-5 w-5 text-slate-400" />
+                  <Search className="absolute left-3 top-3 md:top-3.5 h-5 w-5 text-slate-400" />
                   <Input
                     type="text"
-                    placeholder="Pesquise o setor ou o centro de custo (ex: 128)..."
+                    placeholder="Pesquise o setor (ex: 128)..."
                     value={searchQuery}
                     onChange={(e) => {
                       setSearchQuery(e.target.value);
@@ -339,7 +308,7 @@ export default function RequestPage() {
                       setSector("");
                     }}
                     onFocus={() => setIsDropdownOpen(true)}
-                    className="h-12 pl-10 pr-10 border-slate-200 bg-slate-50 focus:bg-white transition-all font-medium rounded-xl text-slate-700 relative z-10"
+                    className="h-12 pl-10 pr-10 border-slate-200 bg-slate-50 focus:bg-white transition-all font-medium rounded-xl text-slate-700 relative z-10 text-sm"
                   />
                   <ChevronDown className="absolute right-3 top-3.5 h-5 w-5 text-slate-400 pointer-events-none z-20" />
                 </div>
@@ -369,44 +338,35 @@ export default function RequestPage() {
                 )}
 
                 {sector && (
-                  <div className="mt-2 text-xs font-bold text-green-600 flex items-center gap-1 animate-in fade-in">
-                    <CheckCircle2 className="w-3 h-3" /> Setor confirmado para
-                    entrega
+                  <div className="mt-2 text-[11px] md:text-xs font-bold text-green-600 flex items-center gap-1 animate-in fade-in">
+                    <CheckCircle2 className="w-3 h-3" /> Setor confirmado
                   </div>
                 )}
               </div>
             </CardContent>
           </Card>
 
-          {/* PASSO 2: CATÁLOGO OU ITEM PERSONALIZADO */}
+          {/* PASSO 2: CATÁLOGO */}
           <Card className="border-none shadow-xl shadow-slate-200/40 overflow-hidden relative z-10">
-            <div className="bg-white p-6 border-b border-slate-100 flex items-center justify-between">
-              <h2 className="font-bold text-slate-800 flex items-center gap-2">
-                <span className="bg-slate-900 text-white w-6 h-6 rounded-full flex items-center justify-center text-xs font-black">
+            <div className="bg-white p-4 md:p-6 border-b border-slate-100">
+              <h2 className="font-bold text-slate-800 flex items-center gap-2 text-sm md:text-base">
+                <span className="bg-slate-900 text-white w-6 h-6 rounded-full flex items-center justify-center text-xs font-black shrink-0">
                   2
                 </span>
-                Selecione os itens do catálogo
+                Selecione os itens
               </h2>
             </div>
 
-            <CardContent className="p-6 bg-slate-50/30">
+            <CardContent className="p-4 md:p-6 bg-slate-50/30">
               {!isCustomRequest ? (
                 <>
-                  {/* GRADE DE CATÁLOGO PADRÃO */}
-                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 md:gap-4">
                     {loading ? (
-                      [1, 2, 3].map((i) => (
-                        <div
-                          key={i}
-                          className="h-24 bg-slate-100 animate-pulse rounded-2xl"
-                        />
-                      ))
+                      [1, 2, 3].map((i) => <div key={i} className="h-20 md:h-24 bg-slate-100 animate-pulse rounded-2xl" />)
                     ) : availableTypes.length === 0 ? (
                       <div className="col-span-full py-8 text-center">
                         <Info className="w-8 h-8 text-slate-300 mx-auto mb-2" />
-                        <p className="text-slate-500 font-medium">
-                          Catálogo indisponível no momento.
-                        </p>
+                        <p className="text-slate-500 font-medium">Catálogo indisponível.</p>
                       </div>
                     ) : (
                       availableTypes.map((item) => {
@@ -416,28 +376,18 @@ export default function RequestPage() {
                             key={item.type}
                             type="button"
                             onClick={() => addToCart(item.type)}
-                            className={`group p-4 rounded-2xl border-2 text-left transition-all duration-300 active:scale-95 ${
-                              inCart
-                                ? "border-blue-600 bg-blue-50 shadow-md shadow-blue-900/5"
-                                : "border-white bg-white hover:border-slate-200 hover:shadow-sm"
+                            className={`group p-3 md:p-4 rounded-xl md:rounded-2xl border-2 text-left transition-all duration-300 active:scale-95 ${
+                              inCart ? "border-blue-600 bg-blue-50 shadow-md shadow-blue-900/5" : "border-white bg-white hover:border-slate-200 hover:shadow-sm"
                             }`}
                           >
-                            <div className="flex flex-col h-full justify-between gap-2">
+                            <div className="flex flex-col h-full justify-between gap-1 md:gap-2">
                               <div className="flex justify-between items-start">
-                                <span
-                                  className={`text-[10px] font-black uppercase tracking-widest ${inCart ? "text-blue-600" : "text-slate-400"}`}
-                                >
+                                <span className={`text-[9px] md:text-[10px] font-black uppercase tracking-widest ${inCart ? "text-blue-600" : "text-slate-400"}`}>
                                   Mobiliário
                                 </span>
-                                {inCart ? (
-                                  <CheckCircle2 className="w-4 h-4 text-blue-600" />
-                                ) : (
-                                  <Plus className="w-4 h-4 text-slate-300 group-hover:text-blue-500 transition-colors" />
-                                )}
+                                {inCart ? <CheckCircle2 className="w-4 h-4 text-blue-600" /> : <Plus className="w-4 h-4 text-slate-300 group-hover:text-blue-500" />}
                               </div>
-                              <p
-                                className={`font-bold leading-tight ${inCart ? "text-blue-900" : "text-slate-900"}`}
-                              >
+                              <p className={`font-bold text-sm md:text-base leading-tight ${inCart ? "text-blue-900" : "text-slate-900"}`}>
                                 {item.type}
                               </p>
                             </div>
@@ -447,51 +397,39 @@ export default function RequestPage() {
                     )}
                   </div>
 
-                  {/* BOTÃO PARA ABRIR SOLICITAÇÃO PERSONALIZADA */}
                   {!loading && (
-                    <div className="mt-8 text-center border-t border-slate-200/60 pt-6">
+                    <div className="mt-6 md:mt-8 text-center border-t border-slate-200/60 pt-4 md:pt-6">
                       <button
                         type="button"
                         onClick={() => setIsCustomRequest(true)}
-                        className="text-sm font-bold text-blue-600 hover:text-blue-800 underline decoration-blue-200 underline-offset-4 transition-colors"
+                        className="text-xs md:text-sm font-bold text-blue-600 hover:text-blue-800 underline decoration-blue-200 underline-offset-4"
                       >
-                        Seu mobiliário não está na lista? Faça uma solicitação
-                        personalizada.
+                        Item não listado? Solicite aqui.
                       </button>
                     </div>
                   )}
                 </>
               ) : (
-                /* ÁREA DO ITEM PERSONALIZADO */
                 <div className="space-y-4 animate-in fade-in zoom-in-95 duration-300">
-                  <div className="bg-white p-6 rounded-2xl border-2 border-blue-100 shadow-sm">
+                  <div className="bg-white p-4 md:p-6 rounded-2xl border-2 border-blue-100 shadow-sm">
                     <Label className="text-sm font-bold text-slate-800 mb-2 block">
                       Qual é o nome do mobiliário desejado?
                     </Label>
-                    <div className="flex flex-col sm:flex-row gap-3">
+                    <div className="flex flex-col sm:flex-row gap-2 md:gap-3">
                       <Input
-                        placeholder="Ex: Cadeira de Rodas Bariátrica..."
+                        placeholder="Ex: Cadeira de Rodas..."
                         value={customItemName}
                         onChange={(e) => setCustomItemName(e.target.value)}
-                        className="h-12 bg-slate-50 border-slate-200"
+                        className="h-12 bg-slate-50 border-slate-200 text-sm"
                         autoFocus
                       />
-                      <Button
-                        type="button"
-                        onClick={handleAddCustomItem}
-                        className="h-12 bg-blue-600 hover:bg-blue-700 text-white font-bold px-6 shrink-0"
-                      >
-                        <Plus className="w-5 h-5 mr-2" /> Adicionar
+                      <Button type="button" onClick={handleAddCustomItem} className="h-12 bg-blue-600 hover:bg-blue-700 text-white font-bold px-6">
+                        <Plus className="w-4 h-4 mr-2" /> Adicionar
                       </Button>
                     </div>
 
-                    <button
-                      type="button"
-                      onClick={() => setIsCustomRequest(false)}
-                      className="mt-6 text-xs font-bold text-slate-400 hover:text-slate-600 transition-colors flex items-center gap-1"
-                    >
-                      <ChevronRight className="w-4 h-4 rotate-180" /> Voltar
-                      para o catálogo
+                    <button type="button" onClick={() => setIsCustomRequest(false)} className="mt-4 md:mt-6 text-[11px] md:text-xs font-bold text-slate-400 hover:text-slate-600 flex items-center gap-1">
+                      <ChevronRight className="w-4 h-4 rotate-180" /> Voltar para o catálogo
                     </button>
                   </div>
                 </div>
@@ -499,69 +437,51 @@ export default function RequestPage() {
             </CardContent>
           </Card>
 
-          {/* PASSO 3: O CARRINHO DE COMPRAS */}
+          {/* PASSO 3: CARRINHO DE COMPRAS */}
           {cart.length > 0 && (
-            <div className="space-y-4 animate-in slide-in-from-bottom-4 duration-500 relative z-10">
-              <h3 className="font-black text-slate-800 pl-2 flex items-center gap-2">
-                <ShoppingCart className="w-5 h-5 text-blue-600" />
-                Itens no seu Pedido
+            <div className="space-y-3 md:space-y-4 animate-in slide-in-from-bottom-4 duration-500 relative z-10">
+              <h3 className="font-black text-slate-800 pl-1 md:pl-2 flex items-center gap-2 text-sm md:text-base">
+                <ShoppingCart className="w-4 h-4 md:w-5 md:h-5 text-blue-600" />
+                Itens no Pedido
               </h3>
 
               {cart.map((item) => (
-                <Card
-                  key={item.type}
-                  className="border-slate-200 shadow-sm overflow-hidden"
-                >
+                <Card key={item.type} className="border-slate-200 shadow-sm overflow-hidden">
                   <div className="flex flex-col sm:flex-row">
-                    <div className="bg-slate-50 p-4 sm:w-1/3 border-b sm:border-b-0 sm:border-r border-slate-200 flex flex-col justify-center">
-                      <p className="font-bold text-slate-900 mb-3">
-                        {item.type}
-                      </p>
+                    {/* Linha do Item + Quantidade (Ajustada p/ Mobile) */}
+                    <div className="bg-slate-50 p-3 md:p-4 sm:w-1/3 border-b sm:border-b-0 sm:border-r border-slate-200 flex flex-row sm:flex-col justify-between sm:justify-center items-center sm:items-start gap-2">
+                      <p className="font-bold text-slate-900 text-sm md:text-base">{item.type}</p>
 
-                      <div className="flex items-center gap-3 bg-white w-fit px-2 py-1.5 rounded-lg border border-slate-200 shadow-sm">
-                        <button
-                          type="button"
-                          onClick={() => updateCartItemQuantity(item.type, -1)}
-                          className="w-6 h-6 flex items-center justify-center rounded-md bg-slate-100 hover:bg-slate-200 text-slate-600 transition-colors"
-                        >
+                      <div className="flex items-center gap-2 md:gap-3 bg-white px-2 py-1.5 rounded-lg border border-slate-200 shadow-sm shrink-0">
+                        <button type="button" onClick={() => updateCartItemQuantity(item.type, -1)} className="w-6 h-6 flex items-center justify-center rounded-md bg-slate-100 hover:bg-slate-200 text-slate-600">
                           <Minus className="w-3 h-3" />
                         </button>
-                        <span className="font-black text-sm w-4 text-center text-slate-800">
-                          {item.quantity}
-                        </span>
-                        <button
-                          type="button"
-                          onClick={() => updateCartItemQuantity(item.type, 1)}
-                          className="w-6 h-6 flex items-center justify-center rounded-md bg-slate-100 hover:bg-slate-200 text-slate-600 transition-colors"
-                        >
+                        <span className="font-black text-xs md:text-sm w-4 text-center text-slate-800">{item.quantity}</span>
+                        <button type="button" onClick={() => updateCartItemQuantity(item.type, 1)} className="w-6 h-6 flex items-center justify-center rounded-md bg-slate-100 hover:bg-slate-200 text-slate-600">
                           <Plus className="w-3 h-3" />
                         </button>
                       </div>
                     </div>
 
-                    <div className="p-4 sm:w-2/3 relative flex flex-col justify-center gap-2">
-                      <Label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">
-                        Qual a justificativa para{" "}
-                        {item.quantity === 1 ? "este item" : "estes itens"}?
-                      </Label>
+                    {/* Justificativa (Ajustada p/ Mobile) */}
+                    <div className="p-3 md:p-4 sm:w-2/3 relative flex flex-col justify-center gap-1.5 md:gap-2">
+                      <div className="flex justify-between items-center pr-1">
+                        <Label className="text-[9px] md:text-[10px] font-bold text-slate-500 uppercase tracking-wider leading-tight">
+                          Justificativa para {item.quantity === 1 ? "este item" : "estes itens"}:
+                        </Label>
+                        {/* Botão de excluir agora fica junto da label no mobile para não sobrepor o input */}
+                        <button type="button" onClick={() => removeFromCart(item.type)} className="text-slate-300 hover:text-red-500 p-1 md:absolute md:top-4 md:right-4">
+                          <Trash2 className="w-4 h-4 md:w-5 md:h-5" />
+                        </button>
+                      </div>
+                      
                       <Input
                         required
                         value={item.reason}
-                        onChange={(e) =>
-                          updateCartItemReason(item.type, e.target.value)
-                        }
-                        placeholder={`Ex: Necessário para atendimento...`}
-                        className="bg-slate-50 border-slate-100"
+                        onChange={(e) => updateCartItemReason(item.type, e.target.value)}
+                        placeholder="Motivo..."
+                        className="bg-slate-50 border-slate-100 h-10 md:h-11 text-sm"
                       />
-
-                      <button
-                        type="button"
-                        onClick={() => removeFromCart(item.type)}
-                        className="absolute top-4 right-4 text-slate-300 hover:text-red-500 transition-colors"
-                        title="Remover do pedido"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
                     </div>
                   </div>
                 </Card>
@@ -572,15 +492,15 @@ export default function RequestPage() {
           <Button
             type="submit"
             disabled={cart.length === 0 || loading}
-            className="w-full h-16 bg-blue-600 hover:bg-blue-700 text-white rounded-2xl text-lg font-black shadow-2xl shadow-blue-600/30 transition-all hover:-translate-y-1 active:scale-95 disabled:opacity-50 disabled:translate-y-0 relative z-10 mt-8"
+            className="w-full h-14 md:h-16 bg-blue-600 hover:bg-blue-700 text-white rounded-xl md:rounded-2xl text-base md:text-lg font-black shadow-lg md:shadow-2xl shadow-blue-600/30 transition-all hover:-translate-y-1 active:scale-95 disabled:opacity-50 mt-6 md:mt-8"
           >
-            <Send className="w-5 h-5 mr-3" />
+            <Send className="w-4 h-4 md:w-5 md:h-5 mr-2 md:mr-3" />
             FINALIZAR PEDIDO
-            <ChevronRight className="w-5 h-5 ml-auto opacity-50" />
+            <ChevronRight className="w-4 h-4 md:w-5 md:h-5 ml-auto opacity-50" />
           </Button>
         </form>
 
-        <p className="text-center text-slate-400 text-[10px] font-bold uppercase tracking-widest mt-8">
+        <p className="text-center text-slate-400 text-[9px] md:text-[10px] font-bold uppercase tracking-widest mt-6 md:mt-8 pb-4">
           IBCC ONCOLOGIA • HOTELARIA
         </p>
       </div>

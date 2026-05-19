@@ -37,11 +37,12 @@ export default function LoginPage() {
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center bg-[#f8fafc] p-4">
-      <div className="bg-white p-10 rounded-3xl shadow-xl shadow-slate-200/50 w-full max-w-md border border-slate-100">
+      {/* ✅ Ajuste principal: p-6 no celular, p-10 no desktop */}
+      <div className="bg-white p-6 sm:p-8 md:p-10 rounded-3xl shadow-xl shadow-slate-200/50 w-full max-w-md border border-slate-100">
         
         {/* CABEÇALHO COM LOGO OFICIAL */}
-        <div className="flex flex-col items-center mb-10">
-          <div className="relative w-24 h-24 mb-4">
+        <div className="flex flex-col items-center mb-8 md:mb-10">
+          <div className="relative w-20 h-20 md:w-24 md:h-24 mb-3 md:mb-4">
             <Image 
               src="/logo-ibcc.png" 
               alt="Logo IBCC Oncologia" 
@@ -50,44 +51,44 @@ export default function LoginPage() {
               priority
             />
           </div>
-          <h1 className="text-2xl font-black text-slate-900 tracking-tight uppercase">
+          <h1 className="text-xl md:text-2xl font-black text-slate-900 tracking-tight uppercase text-center">
             Hotelaria
           </h1>
-          <p className="text-sm text-slate-500 font-medium mt-1">
+          <p className="text-xs md:text-sm text-slate-500 font-medium mt-1 text-center">
             Gestão de Mobiliário e Ativos
           </p>
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-5">
+        <form onSubmit={handleSubmit} className="space-y-4 md:space-y-5">
           {error && (
-            <div className="bg-red-50 border border-red-100 text-red-600 p-4 rounded-xl text-sm text-center font-medium animate-in fade-in slide-in-from-top-2">
+            <div className="bg-red-50 border border-red-100 text-red-600 p-3 md:p-4 rounded-xl text-xs md:text-sm text-center font-medium animate-in fade-in slide-in-from-top-2">
               {error}
             </div>
           )}
 
           <div className="space-y-1.5">
-            <label className="block text-xs font-black text-slate-500 uppercase tracking-widest">
+            <label className="block text-[10px] md:text-xs font-black text-slate-500 uppercase tracking-widest">
               E-mail Institucional
             </label>
             <input
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 outline-none focus:bg-white focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 text-slate-900 transition-all font-medium"
+              className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 outline-none focus:bg-white focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 text-slate-900 transition-all font-medium text-sm md:text-base"
               placeholder="seu.email@ibcc.org.br"
               required
             />
           </div>
 
           <div className="space-y-1.5">
-            <label className="block text-xs font-black text-slate-500 uppercase tracking-widest">
+            <label className="block text-[10px] md:text-xs font-black text-slate-500 uppercase tracking-widest">
               Senha de Acesso
             </label>
             <input
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 outline-none focus:bg-white focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 text-slate-900 transition-all font-medium"
+              className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 outline-none focus:bg-white focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 text-slate-900 transition-all font-medium text-sm md:text-base"
               placeholder="••••••••"
               required
             />
@@ -96,14 +97,14 @@ export default function LoginPage() {
           <button
             type="submit"
             disabled={loading}
-            className="w-full bg-blue-600 text-white rounded-xl py-3.5 font-black uppercase tracking-widest hover:bg-blue-700 disabled:opacity-50 transition-all shadow-lg shadow-blue-600/20 mt-4"
+            className="w-full bg-blue-600 text-white rounded-xl py-3.5 font-black text-sm md:text-base uppercase tracking-widest hover:bg-blue-700 disabled:opacity-50 transition-all shadow-lg shadow-blue-600/20 mt-2 md:mt-4"
           >
             {loading ? 'Autenticando...' : 'Acessar Sistema'}
           </button>
         </form>
       </div>
 
-      <p className="text-center text-slate-400 text-[10px] font-black uppercase tracking-[0.3em] mt-12">
+      <p className="text-center text-slate-400 text-[9px] md:text-[10px] font-black uppercase tracking-[0.3em] mt-8 md:mt-12">
         IBCC Oncologia • Hotelaria
       </p>
     </div>

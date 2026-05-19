@@ -65,9 +65,10 @@ export function GlobalSearch() {
     <>
       <button
         onClick={() => setOpen(true)}
-        className="group flex items-center gap-2 px-3 py-1.5 text-sm text-slate-400 bg-slate-800 hover:bg-slate-700 rounded-md border border-slate-700 transition-all w-48 lg:w-64"
+        // ✅ AJUSTE: w-full no mobile, larguras fixas no tablet/desktop. Padding aumentado pro toque.
+        className="group flex items-center gap-2 px-3 py-2.5 md:py-1.5 text-sm text-slate-400 bg-slate-800 hover:bg-slate-700 rounded-lg md:rounded-md border border-slate-700 transition-all w-full md:w-48 lg:w-64"
       >
-        <Search className="w-4 h-4 group-hover:text-blue-400 transition-colors" />
+        <Search className="w-4 h-4 md:w-4 md:h-4 group-hover:text-blue-400 transition-colors" />
         <span className="truncate">Busca rápida...</span>
         <kbd className="ml-auto pointer-events-none hidden sm:inline-flex h-5 select-none items-center gap-1 rounded border border-slate-600 bg-slate-900 px-1.5 font-mono text-[10px] font-medium text-slate-500">
           <span className="text-xs">⌘</span>K
@@ -75,8 +76,8 @@ export function GlobalSearch() {
       </button>
 
       <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="overflow-hidden p-0 shadow-2xl border-slate-200">
-          {/* RESOLUÇÃO DO ERRO: Adicionado Header e Title com sr-only (invisível mas presente) */}
+        {/* ✅ AJUSTE: w-[95vw] para não vazar no celular, rounded-2xl para visual mobile-first */}
+        <DialogContent className="overflow-hidden p-0 shadow-2xl border-slate-200 w-[95vw] max-w-lg sm:w-full rounded-2xl md:rounded-xl">
           <DialogHeader className="sr-only">
             <DialogTitle>Busca Global de Ativos</DialogTitle>
           </DialogHeader>
@@ -86,10 +87,11 @@ export function GlobalSearch() {
               placeholder="Digite o patrimônio, setor ou nome..." 
               value={query}
               onValueChange={setQuery}
+              className="text-base md:text-sm h-12 md:h-11" // Fonte maior no mobile evita zoom automático do iOS
             />
-            <CommandList className="max-h-[400px]">
+            <CommandList className="max-h-[50vh] md:max-h-[400px]">
               {query.length >= 2 && results.furniture.length === 0 && results.requests.length === 0 && (
-                <CommandEmpty>Nenhum resultado para "{query}".</CommandEmpty>
+                <CommandEmpty className="py-6 text-center text-sm">Nenhum resultado para "{query}".</CommandEmpty>
               )}
               
               {results.furniture.length > 0 && (
@@ -99,12 +101,12 @@ export function GlobalSearch() {
                       key={item.id} 
                       value={item.id}
                       onSelect={() => runCommand(`/admin/furniture/${item.id}`)}
-                      className="cursor-pointer py-3"
+                      className="cursor-pointer py-3 md:py-2"
                     >
-                      <Package className="mr-3 h-4 w-4 text-blue-500" />
-                      <div className="flex flex-col">
-                        <span className="font-bold text-slate-900">{item.name}</span>
-                        <span className="text-xs text-slate-500">Patrimônio: {item.patrimony || 'Sem número'}</span>
+                      <Package className="mr-3 h-5 w-5 md:h-4 md:w-4 text-blue-500 shrink-0" />
+                      <div className="flex flex-col min-w-0">
+                        <span className="font-bold text-slate-900 text-sm md:text-sm truncate">{item.name}</span>
+                        <span className="text-xs text-slate-500 truncate">Patrimônio: {item.patrimony || 'Sem número'}</span>
                       </div>
                     </CommandItem>
                   ))}
@@ -118,13 +120,12 @@ export function GlobalSearch() {
                       key={req.id} 
                       value={req.id}
                       onSelect={() => runCommand(`/admin/requests`)}
-                      className="cursor-pointer py-3"
+                      className="cursor-pointer py-3 md:py-2"
                     >
-                      <ClipboardList className="mr-3 h-4 w-4 text-amber-500" />
-                      <div className="flex flex-col">
-                        <span className="font-bold text-slate-900">{req.sector}</span>
-                        <span className="text-xs text-slate-500 uppercase font-black tracking-tighter">
-                          {/* Ajustado para ler o primeiro item do carrinho como referência */}
+                      <ClipboardList className="mr-3 h-5 w-5 md:h-4 md:w-4 text-amber-500 shrink-0" />
+                      <div className="flex flex-col min-w-0">
+                        <span className="font-bold text-slate-900 text-sm md:text-sm truncate">{req.sector}</span>
+                        <span className="text-[10px] md:text-xs text-slate-500 uppercase font-black tracking-tighter truncate">
                           {req.items?.length > 0 
                             ? `${req.items[0].quantity}x ${req.items[0].type}${req.items.length > 1 ? '...' : ''}` 
                             : 'Pedido Geral'} • {req.status}
@@ -137,9 +138,9 @@ export function GlobalSearch() {
               
               <CommandSeparator />
               <CommandGroup heading="Atalhos">
-                <CommandItem onSelect={() => runCommand('/')} className="cursor-pointer">
-                   <History className="mr-3 h-4 w-4" />
-                   Ir para o Dashboard
+                <CommandItem onSelect={() => runCommand('/')} className="cursor-pointer py-3 md:py-2">
+                   <History className="mr-3 h-5 w-5 md:h-4 md:w-4 text-slate-400" />
+                   <span className="text-sm md:text-sm text-slate-700">Ir para o Dashboard</span>
                 </CommandItem>
               </CommandGroup>
             </CommandList>

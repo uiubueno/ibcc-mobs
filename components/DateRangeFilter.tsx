@@ -22,11 +22,9 @@ export function DateRangeFilter() {
     to: toParam ? new Date(`${toParam}T00:00:00`) : undefined,
   })
 
-  // A MÁGICA DA CORREÇÃO ESTÁ AQUI: Só atualiza a URL quando você clica.
   const handleDateChange = (newDate: any) => {
-    setDate(newDate) // Atualiza o estado visual
+    setDate(newDate)
 
-    // Atualiza a URL na mesma hora
     const params = new URLSearchParams(searchParams.toString())
     
     if (newDate?.from) {
@@ -50,10 +48,12 @@ export function DateRangeFilter() {
   }
 
   return (
-    <div className="flex items-center gap-2 bg-white p-2 rounded-2xl shadow-sm border border-slate-100">
-      <div className="flex items-center gap-2 px-3 border-r border-slate-100 mr-2 text-slate-400">
-        <Filter className="w-4 h-4" />
-        <span className="text-[10px] font-black uppercase tracking-wider">Período</span>
+    // ✅ Ajuste flex no mobile para garantir que o filtro não quebre
+    <div className="flex items-center gap-1 bg-white p-1 rounded-xl shadow-sm border border-slate-100 w-full sm:w-auto">
+      
+      <div className="hidden sm:flex items-center gap-2 px-3 border-r border-slate-100 text-slate-400">
+        <Filter className="w-3 h-3" />
+        <span className="text-[9px] font-black uppercase tracking-wider">Período</span>
       </div>
 
       <Popover>
@@ -61,35 +61,49 @@ export function DateRangeFilter() {
           <Button
             variant={"ghost"}
             className={cn(
-              "justify-start text-left font-bold text-xs h-9 hover:bg-slate-50",
+              "flex-1 justify-start text-left font-bold text-[10px] md:text-xs h-9 hover:bg-slate-50 px-2",
               !date?.from && "text-muted-foreground"
             )}
           >
-            <CalendarIcon className="mr-2 h-4 w-4 text-blue-600" />
-            {date?.from ? (
-              date.to ? (
-                <>
-                  {format(date.from, "dd/MM/yy", { locale: ptBR })} -{" "}
-                  {format(date.to, "dd/MM/yy", { locale: ptBR })}
-                </>
+            <CalendarIcon className="mr-2 h-3 w-3 md:h-4 md:w-4 text-blue-600 shrink-0" />
+            <span className="truncate">
+              {date?.from ? (
+                date.to ? (
+                  `${format(date.from, "dd/MM/yy", { locale: ptBR })} - ${format(date.to, "dd/MM/yy", { locale: ptBR })}`
+                ) : (
+                  format(date.from, "dd/MM/yy", { locale: ptBR })
+                )
               ) : (
-                format(date.from, "dd/MM/yy", { locale: ptBR })
-              )
-            ) : (
-              <span>Selecionar período</span>
-            )}
+                "Selecionar período"
+              )}
+            </span>
           </Button>
         </PopoverTrigger>
-        <PopoverContent className="w-auto p-0" align="end">
-          <Calendar
-            initialFocus
-            mode="range"
-            defaultMonth={date?.from}
-            selected={{ from: date?.from, to: date?.to }}
-            onSelect={handleDateChange} // <-- Agora chama a função segura!
-            numberOfMonths={2}
-            locale={ptBR}
-          />
+        
+        {/* ✅ Ajuste: numberOfMonths={1} no mobile, {2} no desktop */}
+        <PopoverContent className="w-auto p-0 z-[60]" align="end">
+          <div className="md:hidden">
+            <Calendar
+              initialFocus
+              mode="range"
+              defaultMonth={date?.from}
+              selected={{ from: date?.from, to: date?.to }}
+              onSelect={handleDateChange}
+              numberOfMonths={1}
+              locale={ptBR}
+            />
+          </div>
+          <div className="hidden md:block">
+            <Calendar
+              initialFocus
+              mode="range"
+              defaultMonth={date?.from}
+              selected={{ from: date?.from, to: date?.to }}
+              onSelect={handleDateChange}
+              numberOfMonths={2}
+              locale={ptBR}
+            />
+          </div>
         </PopoverContent>
       </Popover>
 
@@ -97,10 +111,10 @@ export function DateRangeFilter() {
         <Button
           variant="ghost"
           size="sm"
-          className="text-[10px] font-bold text-slate-400 hover:text-red-500 h-8 px-2"
+          className="text-red-500 hover:text-red-600 hover:bg-red-50 h-8 w-8 p-0 shrink-0"
           onClick={clearFilter}
         >
-          <X className="w-4 h-4" />
+          <X className="w-3 h-3 md:w-4 md:h-4" />
         </Button>
       )}
     </div>
