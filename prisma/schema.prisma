@@ -146,3 +146,26 @@ model PillowMovement {
 
   @@map("pillow_movements")
 }
+
+// ----------------------------------------------------------------------
+// MÓDULO DE INVENTÁRIO DO GALPÃO (ENTREPOSTO)
+// ----------------------------------------------------------------------
+
+enum WarehouseItemStatus {
+  BOM
+  CONSERTO
+  CONDENADO
+}
+
+model WarehouseItem {
+  id          String              @id @default(cuid())
+  name        String              // Nome do mobiliário
+  patrimony   String?             // Opcional: Se ficar vazio, no PDF sai "S/P"
+  unit        String              @default("Não possui") // ✅ COLUNA NOVA AQUI
+  imageUrl    String              // Aqui vamos guardar APENAS o link da foto da nuvem
+  status      WarehouseItemStatus @default(BOM)
+  createdAt   DateTime            @default(now())
+  updatedAt   DateTime            @updatedAt
+
+  @@map("warehouse_items")
+}
