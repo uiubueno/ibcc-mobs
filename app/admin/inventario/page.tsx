@@ -16,11 +16,64 @@ export default function InventarioGalpao() {
   
   const fileInputRef = useRef<HTMLInputElement>(null)
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  // ✅ NOVO: Função super rápida para comprimir a foto e garantir que é JPEG
+  const compressImage = (file: File): Promise<File> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader()
+      reader.readAsDataURL(file)
+      reader.onload = (event) => {
+        const img = new Image()
+        img.src = event.target?.result as string
+        img.onload = () => {
+          const canvas = document.createElement('canvas')
+          let width = img.width
+          let height = img.height
+          const MAX_WIDTH = 1200 // Limita a resolução para HD (perfeito para web)
+          
+          if (width > MAX_WIDTH) {
+            height = height * (MAX_WIDTH / width)
+            width = MAX_WIDTH
+          }
+          
+          canvas.width = width
+          canvas.height = height
+          
+          const ctx = canvas.getContext('2d')
+          ctx?.drawImage(img, 0, 0, width, height)
+          
+          // Força a conversão para JPEG com 80% de qualidade (mata o problema do HEIC e reduz o peso em 90%)
+          canvas.toBlob((blob) => {
+            if (blob) {
+              const newFile = new File([blob], "foto_inventario.jpg", {
+                type: 'image/jpeg',
+                lastModified: Date.now(),
+              })
+              resolve(newFile)
+            } else {
+              reject(new Error("Falha no Canvas"))
+            }
+          }, 'image/jpeg', 0.8)
+        }
+      }
+      reader.onerror = (error) => reject(error)
+    })
+  }
+
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
       const selectedFile = e.target.files[0]
-      setFile(selectedFile)
+      
+      // Mostra o preview imediatamente para o usuário (usando o arquivo original temporariamente)
       setPreview(URL.createObjectURL(selectedFile))
+      
+      try {
+        // Comprime a foto em milissegundos silenciosamente
+        const compressedFile = await compressImage(selectedFile)
+        setFile(compressedFile)
+      } catch (err) {
+        console.error("Erro ao comprimir, usando original", err)
+        setFile(selectedFile)
+      }
     }
   }
 
@@ -40,6 +93,9 @@ export default function InventarioGalpao() {
         body: formData
       })
       const cloudData = await cloudRes.json()
+      
+      if (!cloudRes.ok) throw new Error("Erro no upload do Cloudinary: " + JSON.stringify(cloudData))
+      
       const imageUrl = cloudData.secure_url
 
       const dbRes = await fetch('/api/inventario', {
@@ -63,7 +119,7 @@ export default function InventarioGalpao() {
 
     } catch (error) {
       console.error(error)
-      alert("Ocorreu um erro ao salvar.")
+      alert("Ocorreu um erro ao salvar. Verifique sua conexão.")
     } finally {
       setLoading(false)
     }
@@ -72,7 +128,6 @@ export default function InventarioGalpao() {
   return (
     <div className="max-w-md mx-auto p-4 pb-24 animate-in fade-in duration-500">
       
-      {/* CABEÇALHO COM NAVEGAÇÃO RÁPIDA */}
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-xl md:text-2xl font-black text-slate-900 tracking-tight">Inventário</h1>
         <Link 
@@ -92,11 +147,11 @@ export default function InventarioGalpao() {
       ) : (
         <form onSubmit={handleSubmit} className="space-y-6">
           
-          {/* ÁREA DA FOTO */}
           <div className="flex flex-col items-center gap-4">
+            {/* ✅ NOVO: accept="image/jpeg, image/png" obriga o Android a converter o HEIC na hora da captura */}
             <input 
               type="file" 
-              accept="image/*" 
+              accept="image/jpeg, image/png, image/webp" 
               capture="environment" 
               onChange={handleFileChange}
               ref={fileInputRef}
@@ -126,7 +181,6 @@ export default function InventarioGalpao() {
             )}
           </div>
 
-          {/* FORMULÁRIO DE DADOS */}
           <div className="space-y-5 bg-white p-5 rounded-2xl border border-slate-100 shadow-sm">
             
             <div className="space-y-1.5">
@@ -151,7 +205,7 @@ export default function InventarioGalpao() {
                 type="text" 
                 value={patrimony}
                 onChange={(e) => setPatrimony(e.target.value)}
-                placeholder="Ex: 123456 (Deixe em branco se for S/P)"
+                placeholder="Ex: 123456 (Opcional)"
                 className="w-full p-3.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none transition-all text-sm md:text-base font-medium"
               />
             </div>
