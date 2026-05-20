@@ -188,6 +188,9 @@ export default async function HomePage(props: {
           </div>
         </CardContent>
       </Card>
+              <p className="text-center text-slate-400 text-[9px] md:text-[10px] font-bold uppercase tracking-widest mt-6 md:mt-8 pb-4">
+          IBCC ONCOLOGIA • HOTELARIA
+        </p>
     </div>
   )
 }

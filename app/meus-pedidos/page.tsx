@@ -223,9 +223,9 @@ export default function MyRequestsPage() {
         )}
       </div>
 
-      <p className="text-center text-slate-300 text-[9px] md:text-[10px] font-black uppercase tracking-[0.5em] mt-8 md:mt-12 pb-4">
-        IBCC Oncologia • Setor de Hotelaria
-      </p>
+        <p className="text-center text-slate-400 text-[9px] md:text-[10px] font-bold uppercase tracking-widest mt-6 md:mt-8 pb-4">
+          IBCC ONCOLOGIA • HOTELARIA
+        </p>
     </div>
   )
 }

@@ -278,7 +278,7 @@ export default function EnxovalPage() {
                             {isLowStock ? <AlertTriangle className="w-6 h-6 md:w-8 md:h-8" /> : <PackageOpen className="w-6 h-6 md:w-8 md:h-8" />}
                           </div>
                           <div>
-                              <p className={`text-xs md:text-sm font-bold uppercase tracking-widest ${isLowStock ? 'text-red-600' : 'text-slate-500'}`}>Estoque Pulmão</p>
+                              <p className={`text-xs md:text-sm font-bold uppercase tracking-widest ${isLowStock ? 'text-red-600' : 'text-slate-500'}`}>Estoque</p>
                               {isLowStock && <Badge className="mt-1 bg-red-600 text-white border-none text-[9px] md:text-[10px]">CRÍTICO</Badge>}
                           </div>
                         </div>
@@ -512,6 +512,9 @@ export default function EnxovalPage() {
           </div>
         </DialogContent>
       </Dialog>
+              <p className="text-center text-slate-400 text-[9px] md:text-[10px] font-bold uppercase tracking-widest mt-6 md:mt-8 pb-4">
+          IBCC ONCOLOGIA • HOTELARIA
+        </p>
     </div>
   );
 }
