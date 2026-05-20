@@ -16,63 +16,67 @@ export default function InventarioGalpao() {
   
   const fileInputRef = useRef<HTMLInputElement>(null)
 
-  // ✅ NOVO: Função super rápida para comprimir a foto e garantir que é JPEG
+  // ✅ MOTOR DE COMPRESSÃO MELHORADO PARA MOBILE
   const compressImage = (file: File): Promise<File> => {
     return new Promise((resolve, reject) => {
-      const reader = new FileReader()
-      reader.readAsDataURL(file)
-      reader.onload = (event) => {
-        const img = new Image()
-        img.src = event.target?.result as string
-        img.onload = () => {
-          const canvas = document.createElement('canvas')
-          let width = img.width
-          let height = img.height
-          const MAX_WIDTH = 1200 // Limita a resolução para HD (perfeito para web)
-          
-          if (width > MAX_WIDTH) {
-            height = height * (MAX_WIDTH / width)
-            width = MAX_WIDTH
-          }
-          
-          canvas.width = width
-          canvas.height = height
-          
-          const ctx = canvas.getContext('2d')
-          ctx?.drawImage(img, 0, 0, width, height)
-          
-          // Força a conversão para JPEG com 80% de qualidade (mata o problema do HEIC e reduz o peso em 90%)
-          canvas.toBlob((blob) => {
-            if (blob) {
-              const newFile = new File([blob], "foto_inventario.jpg", {
-                type: 'image/jpeg',
-                lastModified: Date.now(),
-              })
-              resolve(newFile)
-            } else {
-              reject(new Error("Falha no Canvas"))
-            }
-          }, 'image/jpeg', 0.8)
+      const img = new Image()
+      
+      // createObjectURL é muito mais seguro para arquivos grandes do que FileReader
+      const objectUrl = URL.createObjectURL(file)
+      img.src = objectUrl
+
+      img.onload = () => {
+        URL.revokeObjectURL(objectUrl) // Libera a memória do celular
+        
+        const canvas = document.createElement('canvas')
+        let width = img.width
+        let height = img.height
+        const MAX_WIDTH = 1200 
+        
+        if (width > MAX_WIDTH) {
+          height = height * (MAX_WIDTH / width)
+          width = MAX_WIDTH
         }
+        
+        canvas.width = width
+        canvas.height = height
+        
+        const ctx = canvas.getContext('2d')
+        ctx?.drawImage(img, 0, 0, width, height)
+        
+        canvas.toBlob((blob) => {
+          if (blob) {
+            const newFile = new File([blob], "foto_inventario.jpg", {
+              type: 'image/jpeg',
+              lastModified: Date.now(),
+            })
+            resolve(newFile)
+          } else {
+            reject(new Error("Falha ao processar a imagem no Canvas"))
+          }
+        }, 'image/jpeg', 0.8)
       }
-      reader.onerror = (error) => reject(error)
+
+      img.onerror = () => {
+        URL.revokeObjectURL(objectUrl)
+        reject(new Error("O navegador não conseguiu ler o formato da foto (Possível bloqueio de HEIC)."))
+      }
     })
   }
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
       const selectedFile = e.target.files[0]
-      
-      // Mostra o preview imediatamente para o usuário (usando o arquivo original temporariamente)
       setPreview(URL.createObjectURL(selectedFile))
       
       try {
-        // Comprime a foto em milissegundos silenciosamente
         const compressedFile = await compressImage(selectedFile)
         setFile(compressedFile)
-      } catch (err) {
-        console.error("Erro ao comprimir, usando original", err)
-        setFile(selectedFile)
+      } catch (err: any) {
+        console.error("Erro na compressão:", err)
+        // Se falhar a compressão, avisa o usuário em vez de tentar mandar 15MB pra nuvem
+        alert(`Aviso: ${err.message || 'Falha ao comprimir imagem'}. Tente mudar a câmera para salvar em JPG.`)
+        setFile(selectedFile) 
       }
     }
   }
@@ -94,7 +98,10 @@ export default function InventarioGalpao() {
       })
       const cloudData = await cloudRes.json()
       
-      if (!cloudRes.ok) throw new Error("Erro no upload do Cloudinary: " + JSON.stringify(cloudData))
+      // ✅ ALERTA DE ERRO MELHORADO: Agora mostra o motivo exato se o Cloudinary recusar
+      if (!cloudRes.ok) {
+        throw new Error(`Erro Nuvem: ${cloudData.error?.message || 'Falha no upload'}`)
+      }
       
       const imageUrl = cloudData.secure_url
 
@@ -104,7 +111,11 @@ export default function InventarioGalpao() {
         body: JSON.stringify({ name, patrimony, unit, status, imageUrl })
       })
 
-      if (!dbRes.ok) throw new Error("Erro ao salvar no banco")
+      const dbData = await dbRes.json()
+
+      if (!dbRes.ok) {
+        throw new Error(`Erro Banco: ${dbData.error || 'Falha ao salvar'}`)
+      }
 
       setSuccess(true)
       setTimeout(() => {
@@ -117,9 +128,10 @@ export default function InventarioGalpao() {
         setPreview(null)
       }, 2000)
 
-    } catch (error) {
-      console.error(error)
-      alert("Ocorreu um erro ao salvar. Verifique sua conexão.")
+    } catch (error: any) {
+      console.error("ERRO COMPLETO:", error)
+      // ✅ Mostra a mensagem real do erro na tela do celular
+      alert(`Ocorreu um erro: ${error.message}`)
     } finally {
       setLoading(false)
     }
@@ -148,7 +160,6 @@ export default function InventarioGalpao() {
         <form onSubmit={handleSubmit} className="space-y-6">
           
           <div className="flex flex-col items-center gap-4">
-            {/* ✅ NOVO: accept="image/jpeg, image/png" obriga o Android a converter o HEIC na hora da captura */}
             <input 
               type="file" 
               accept="image/jpeg, image/png, image/webp" 
