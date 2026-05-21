@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { useRouter, useSearchParams } from 'next/navigation'
+import { useRouter, useSearchParams, usePathname } from 'next/navigation'
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { Button } from "@/components/ui/button"
 import { Calendar } from "@/components/ui/calendar"
@@ -13,6 +13,7 @@ import { cn } from "@/lib/utils"
 export function DateRangeFilter() {
   const router = useRouter()
   const searchParams = useSearchParams()
+  const pathname = usePathname() // Identifica a página atual
 
   const fromParam = searchParams.get('from')
   const toParam = searchParams.get('to')
@@ -39,16 +40,17 @@ export function DateRangeFilter() {
       params.delete('to')
     }
 
-    router.push(`/?${params.toString()}`)
+    // Aplica o filtro na mesma página onde o usuário está
+    router.push(`${pathname}?${params.toString()}`)
   }
 
   const clearFilter = () => {
     setDate(undefined)
-    router.push('/')
+    // Limpa o filtro e permanece na mesma página
+    router.push(pathname)
   }
 
   return (
-    // ✅ Ajuste flex no mobile para garantir que o filtro não quebre
     <div className="flex items-center gap-1 bg-white p-1 rounded-xl shadow-sm border border-slate-100 w-full sm:w-auto">
       
       <div className="hidden sm:flex items-center gap-2 px-3 border-r border-slate-100 text-slate-400">
@@ -80,7 +82,6 @@ export function DateRangeFilter() {
           </Button>
         </PopoverTrigger>
         
-        {/* ✅ Ajuste: numberOfMonths={1} no mobile, {2} no desktop */}
         <PopoverContent className="w-auto p-0 z-[60]" align="end">
           <div className="md:hidden">
             <Calendar
