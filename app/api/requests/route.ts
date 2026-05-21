@@ -72,11 +72,11 @@ export async function POST(req: NextRequest) {
     try {
       await sendMail({
         to: 'william.peixoto@ibcc.org.br',
-        subject: `🚨 Novo Pedido Múltiplo: ${sector}`,
+        subject: `🚨 Novo Pedido: ${sector}`,
         html: `
           <div style="font-family: sans-serif; color: #333;">
             <h2 style="color: #2563eb;">Novo Pedido de Mobiliário</h2>
-            <p>O coordenador <strong>${session.user.name}</strong> acabou de abrir um chamado para o setor <strong>${sector}</strong>.</p>
+            <p>O colaborador <strong>${session.user.name}</strong> acabou de abrir um chamado para o setor <strong>${sector}</strong>.</p>
             <hr />
             <h3>Itens Solicitados:</h3>
             <ul>

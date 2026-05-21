@@ -476,7 +476,7 @@ export default function AdminRequestsPage() {
         </section>
       </div>
 
-      {/* --- MODAIS COM RESPONSIVIDADE (max-w e padding ajustados) --- */}
+      {/* --- MODAIS COM RESPONSIVIDADE --- */}
       
       {/* MODAL RECUSA */}
       <Dialog open={openRejectModal} onOpenChange={setOpenRejectModal}>
@@ -511,36 +511,40 @@ export default function AdminRequestsPage() {
         </DialogContent>
       </Dialog>
 
-      {/* MODAL TRIAGEM */}
+      {/* 🔥 MODAL TRIAGEM 100% BLINDADO 🔥 */}
       <Dialog open={openTriage} onOpenChange={setOpenTriage}>
-        <DialogContent className="max-w-3xl w-[95vw] rounded-2xl md:rounded-xl p-4 md:p-6">
+        <DialogContent className="max-w-3xl w-[95vw] rounded-2xl p-4 md:p-6">
           <DialogHeader>
             <DialogTitle className="text-xl md:text-2xl font-black">Análise de Itens</DialogTitle>
             <DialogDescription className="font-medium text-slate-500 text-xs md:text-sm">
-              O coordenador será notificado por e-mail.
+              O coordenador será notificado por e-mail com as decisões abaixo.
             </DialogDescription>
           </DialogHeader>
-          <div className="py-2 md:py-4 space-y-3 max-h-[60vh] md:max-h-[450px] overflow-y-auto pr-1 md:pr-2">
+          
+          <div className="py-2 md:py-4 space-y-4 max-h-[60vh] overflow-y-auto pr-1">
             {selectedRequest?.items?.map((item: any) => (
               <div
                 key={item.id}
-                className={`p-3 md:p-4 rounded-xl border-2 flex flex-col sm:flex-row gap-3 md:gap-4 justify-between sm:items-center transition-colors ${itemStatuses[item.id] === "EM_SEPARACAO" ? "bg-green-50 border-green-200" : itemStatuses[item.id] === "EM_COMPRA" ? "bg-amber-50 border-amber-200" : "bg-red-50 border-red-200"}`}
+                // Agora o Flexbox é só para EMPILHAR as coisas (Texto em cima, Botões embaixo)
+                className={`p-3 md:p-5 rounded-xl border-2 flex flex-col gap-3 transition-colors ${itemStatuses[item.id] === "EM_SEPARACAO" ? "bg-green-50 border-green-200" : itemStatuses[item.id] === "EM_COMPRA" ? "bg-amber-50 border-amber-200" : "bg-red-50 border-red-200"}`}
               >
-                <div className="flex-1">
-                  <p className="font-black text-slate-900 leading-tight text-sm md:text-base">
+                {/* 1. O Texto tem espaço total agora */}
+                <div className="w-full">
+                  <p className="font-black text-slate-900 leading-tight text-base md:text-lg">
                     {item.quantity}x {item.type}
                   </p>
-                  <p className="text-[10px] md:text-[11px] text-slate-500 italic mt-1 line-clamp-2 sm:line-clamp-none">
+                  <p className="text-xs text-slate-500 italic mt-1 line-clamp-3">
                     Motivo: {item.reason}
                   </p>
                 </div>
-                {/* Botões de decisão no mobile ficam com largura total e grid */}
-                <div className="grid grid-cols-3 sm:flex gap-1 bg-white p-1 rounded-lg md:rounded-xl border shadow-sm w-full sm:w-fit shrink-0">
+                
+                {/* 2. Os Botões ficam numa Grade exata de 3 colunas em baixo */}
+                <div className="grid grid-cols-3 gap-1 bg-white/80 p-1 rounded-lg border border-slate-200 shadow-sm w-full mt-1">
                   {["EM_SEPARACAO", "EM_COMPRA", "RECUSADO"].map((st) => (
                     <button
                       key={st}
                       onClick={() => handleUpdateItemStatus(item.id, st)}
-                      className={`py-2 px-1 md:px-4 rounded-md md:rounded-lg text-[8px] md:text-[9px] font-black transition-all text-center ${itemStatuses[item.id] === st ? "bg-slate-900 text-white" : "text-slate-400 hover:bg-slate-50"}`}
+                      className={`py-2 px-1 rounded-md text-[9px] md:text-[10px] font-black transition-all text-center flex flex-col items-center justify-center ${itemStatuses[item.id] === st ? "bg-slate-900 text-white shadow-md" : "text-slate-500 hover:bg-slate-100 hover:text-slate-800"}`}
                     >
                       {st === "EM_SEPARACAO" ? "ESTOQUE" : st === "EM_COMPRA" ? "COMPRAR" : "RECUSAR"}
                     </button>
@@ -549,11 +553,12 @@ export default function AdminRequestsPage() {
               </div>
             ))}
           </div>
-          <DialogFooter className="border-t pt-4 flex-col sm:flex-row gap-2 sm:gap-0 mt-2 md:mt-0">
-            <Button variant="outline" onClick={() => setOpenTriage(false)} className="w-full sm:w-auto order-2 sm:order-1">
+          
+          <DialogFooter className="border-t pt-4 flex-col sm:flex-row gap-2 sm:gap-0 mt-2">
+            <Button variant="outline" onClick={() => setOpenTriage(false)} className="w-full sm:w-auto order-2 sm:order-1 font-bold h-11 md:h-10">
               CANCELAR
             </Button>
-            <Button onClick={confirmTriage} className="bg-blue-600 text-white font-black w-full sm:w-auto md:px-8 order-1 sm:order-2 h-11 md:h-10">
+            <Button onClick={confirmTriage} className="bg-blue-600 hover:bg-blue-700 text-white font-black w-full sm:w-auto md:px-8 order-1 sm:order-2 h-11 md:h-10 tracking-widest text-sm">
               FINALIZAR TRIAGEM
             </Button>
           </DialogFooter>
@@ -652,9 +657,10 @@ export default function AdminRequestsPage() {
           </div>
         </DialogContent>
       </Dialog>
-              <p className="text-center text-slate-400 text-[9px] md:text-[10px] font-bold uppercase tracking-widest mt-6 md:mt-8 pb-4">
-          IBCC ONCOLOGIA • HOTELARIA
-        </p>
+      
+      <p className="text-center text-slate-400 text-[9px] md:text-[10px] font-bold uppercase tracking-widest mt-6 md:mt-8 pb-4">
+        IBCC ONCOLOGIA • HOTELARIA
+      </p>
     </div>
   );
 }

@@ -244,7 +244,7 @@ export default function RequestPage() {
         body: JSON.stringify({ items: cart, sector }),
       }),
       {
-        loading: "Processando seu pedido múltiplo...",
+        loading: "Processando seu pedido...",
         success: () => {
           setSector("");
           setSearchQuery("");
