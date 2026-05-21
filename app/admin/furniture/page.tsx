@@ -16,7 +16,9 @@ import {
   Search,
   Edit3,
   ChevronLeft,
-  Package2
+  Package2,
+  MapPin,
+  Trash2
 } from 'lucide-react'
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -80,7 +82,8 @@ export default function FurniturePage() {
   const filteredItems = furnitureList.filter(item => 
     item.name.toLowerCase().includes(search.toLowerCase()) ||
     (item.patrimony && item.patrimony.toLowerCase().includes(search.toLowerCase())) ||
-    item.type.toLowerCase().includes(search.toLowerCase())
+    item.type.toLowerCase().includes(search.toLowerCase()) ||
+    (item.location && item.location.toLowerCase().includes(search.toLowerCase()))
   )
 
   const totalPages = Math.ceil(filteredItems.length / itemsPerPage)
@@ -157,6 +160,25 @@ export default function FurniturePage() {
           return 'Cadastro realizado! 🚀'
         },
         error: 'Erro ao salvar.'
+      }
+    )
+  }
+
+  // NOVA AÇÃO: Apagar Registro
+  const handleDelete = async (id: string) => {
+    if (!window.confirm("Tem certeza que deseja excluir este mobiliário? Esta ação não pode ser desfeita.")) return
+
+    toast.promise(
+      fetch(`/api/furniture/${id}`, {
+        method: 'DELETE',
+      }),
+      {
+        loading: 'Apagando registro...',
+        success: () => {
+          fetchData()
+          return 'Mobiliário excluído com sucesso!'
+        },
+        error: 'Erro ao tentar apagar.'
       }
     )
   }
@@ -241,7 +263,7 @@ export default function FurniturePage() {
 
                 <div className="space-y-1.5">
                   <Label className="text-[10px] md:text-xs font-black text-slate-500 uppercase tracking-widest">Localização Base</Label>
-                  <Input required value={location} onChange={e => setLocation(e.target.value)} placeholder="Almoxarifado" className="h-10 md:h-9 text-sm" />
+                  <Input required value={location} onChange={e => setLocation(e.target.value)} placeholder="Ex: Entreposto" className="h-10 md:h-9 text-sm" />
                 </div>
 
                 <div className="pt-2">
@@ -277,7 +299,7 @@ export default function FurniturePage() {
           <div className="relative">
             <Search className="absolute left-3 md:left-4 top-3 md:top-3.5 w-4 h-4 md:w-5 md:h-5 text-slate-400" />
             <Input 
-              placeholder="Procurar por modelo, patrimônio ou tipo..." 
+              placeholder="Procurar por modelo, patrimônio, tipo ou localização..." 
               className="pl-10 md:pl-12 h-10 md:h-12 bg-white border-slate-200 shadow-sm rounded-xl text-sm"
               value={search}
               onChange={(e) => { setSearch(e.target.value); setCurrentPage(1); }}
@@ -292,7 +314,7 @@ export default function FurniturePage() {
                 <Table>
                   <TableHeader className="bg-slate-50">
                     <TableRow>
-                      <TableHead className="font-black text-[10px] uppercase pl-6 py-4">Item / Tipo</TableHead>
+                      <TableHead className="font-black text-[10px] uppercase pl-6 py-4">Item / Localização</TableHead>
                       <TableHead className="font-black text-[10px] uppercase text-center">Patrimônio</TableHead>
                       <TableHead className="font-black text-[10px] uppercase text-center">Qtd</TableHead>
                       <TableHead className="font-black text-[10px] uppercase">Status</TableHead>
@@ -309,7 +331,17 @@ export default function FurniturePage() {
                         <TableRow key={`desk-${item.id}`} className="group hover:bg-slate-50 transition-colors">
                           <TableCell className="pl-6 py-4">
                             <div className="font-bold text-slate-900">{item.name}</div>
-                            <div className="text-[10px] text-slate-400 font-black uppercase tracking-tighter">{item.type}</div>
+                            {/* Localização e Tipo na mesma coluna */}
+                            <div className="flex items-center gap-2 mt-1">
+                              <span className="text-[10px] text-slate-500 font-black uppercase tracking-tighter bg-slate-100 px-2 py-0.5 rounded-md">
+                                {item.type}
+                              </span>
+                              {item.location && (
+                                <span className="flex items-center gap-1 text-[10px] text-slate-400 font-bold uppercase tracking-wider">
+                                  <MapPin className="w-3 h-3" /> {item.location}
+                                </span>
+                              )}
+                            </div>
                           </TableCell>
                           <TableCell className="text-center">
                             <Badge variant="outline" className="font-mono text-[10px] bg-white text-slate-500">
@@ -330,6 +362,7 @@ export default function FurniturePage() {
                                 variant="ghost" size="sm" 
                                 className="h-8 w-8 p-0 text-slate-400 hover:text-blue-600 hover:bg-blue-50"
                                 onClick={() => { setEditingItem(item); setEditQty(item.quantity); setOpenEdit(true); }}
+                                title="Ajustar Saldo"
                               >
                                 <Edit3 className="w-4 h-4" />
                               </Button>
@@ -337,14 +370,24 @@ export default function FurniturePage() {
                                 variant="ghost" size="sm" 
                                 className="h-8 w-8 p-0 text-slate-400 hover:text-amber-600 hover:bg-amber-50"
                                 onClick={() => { setMaintenanceItem(item); setMaintenanceQty('1'); }}
+                                title="Enviar para Oficina"
                               >
                                 <Wrench className="w-4 h-4" />
                               </Button>
-                              <Link href={`/admin/furniture/${item.id}`}>
+                              <Link href={`/admin/furniture/${item.id}`} title="Ver Histórico">
                                 <Button variant="ghost" size="sm" className="h-8 w-8 p-0 text-slate-400 hover:text-slate-900 hover:bg-slate-100">
                                   <History className="w-4 h-4" />
                                 </Button>
                               </Link>
+                              {/* NOVO BOTAO AQUI */}
+                              <Button 
+                                variant="ghost" size="sm" 
+                                className="h-8 w-8 p-0 text-slate-400 hover:text-red-600 hover:bg-red-50"
+                                onClick={() => handleDelete(item.id)}
+                                title="Apagar Registro"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </Button>
                             </div>
                           </TableCell>
                         </TableRow>
@@ -366,11 +409,29 @@ export default function FurniturePage() {
                       <div className="flex justify-between items-start gap-2">
                         <div className="min-w-0">
                           <p className="font-bold text-slate-900 text-base truncate">{item.name}</p>
-                          <p className="text-[10px] text-slate-400 font-black uppercase tracking-widest mt-0.5">{item.type}</p>
+                          <div className="flex flex-wrap items-center gap-1.5 mt-1">
+                            <Badge variant="secondary" className="text-[9px] font-black uppercase bg-slate-100 text-slate-500">
+                              {item.type}
+                            </Badge>
+                            {item.location && (
+                              <span className="flex items-center gap-1 text-[9px] font-bold uppercase text-slate-400">
+                                <MapPin className="w-3 h-3" /> {item.location}
+                              </span>
+                            )}
+                          </div>
                         </div>
-                        <Badge className={`text-[9px] font-black uppercase shrink-0 ${item.status === 'NOVO' ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'}`}>
-                          {item.status}
-                        </Badge>
+                        <div className="flex flex-col items-end gap-2">
+                          <Badge className={`text-[9px] font-black uppercase shrink-0 ${item.status === 'NOVO' ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'}`}>
+                            {item.status}
+                          </Badge>
+                          <button 
+                            onClick={() => handleDelete(item.id)} 
+                            className="text-slate-300 hover:text-red-500 p-1"
+                            title="Apagar"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
                       </div>
 
                       <div className="flex items-center justify-between bg-slate-50 p-2 rounded-lg border border-slate-100">
