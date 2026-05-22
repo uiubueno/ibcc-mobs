@@ -18,7 +18,9 @@ import {
   ChevronLeft,
   Package2,
   MapPin,
-  Trash2
+  Trash2,
+  Archive,
+  MonitorPlay
 } from 'lucide-react'
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -38,8 +40,9 @@ export default function FurniturePage() {
   const [loading, setLoading] = useState(true)
   const [openTypeSuggest, setOpenTypeSuggest] = useState(false)
 
-  // Estados de Busca e Paginação
+  // Estados de Busca, Filtro e Paginação
   const [search, setSearch] = useState('')
+  const [filterView, setFilterView] = useState<'ESTOQUE' | 'USO' | 'TODOS'>('ESTOQUE') // NOVO ESTADO AQUI
   const [currentPage, setCurrentPage] = useState(1)
   const itemsPerPage = 8
 
@@ -78,13 +81,22 @@ export default function FurniturePage() {
 
   useEffect(() => { fetchData() }, [])
 
-  // --- LÓGICA DE BUSCA E PAGINAÇÃO ---
-  const filteredItems = furnitureList.filter(item => 
-    item.name.toLowerCase().includes(search.toLowerCase()) ||
-    (item.patrimony && item.patrimony.toLowerCase().includes(search.toLowerCase())) ||
-    item.type.toLowerCase().includes(search.toLowerCase()) ||
-    (item.location && item.location.toLowerCase().includes(search.toLowerCase()))
-  )
+  // --- LÓGICA DE BUSCA, FILTRO E PAGINAÇÃO ---
+  const filteredItems = furnitureList.filter(item => {
+    // 1. Filtro de Texto
+    const matchesSearch = item.name.toLowerCase().includes(search.toLowerCase()) ||
+      (item.patrimony && item.patrimony.toLowerCase().includes(search.toLowerCase())) ||
+      item.type.toLowerCase().includes(search.toLowerCase()) ||
+      (item.location && item.location.toLowerCase().includes(search.toLowerCase()));
+
+    // 2. Filtro de Abas (Estoque vs Uso)
+    const matchesView = 
+      filterView === 'TODOS' ? true :
+      filterView === 'ESTOQUE' ? item.quantity > 0 :
+      item.quantity === 0;
+
+    return matchesSearch && matchesView;
+  })
 
   const totalPages = Math.ceil(filteredItems.length / itemsPerPage)
   const paginatedItems = filteredItems.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage)
@@ -164,7 +176,6 @@ export default function FurniturePage() {
     )
   }
 
-  // NOVA AÇÃO: Apagar Registro
   const handleDelete = async (id: string) => {
     if (!window.confirm("Tem certeza que deseja excluir este mobiliário? Esta ação não pode ser desfeita.")) return
 
@@ -263,7 +274,7 @@ export default function FurniturePage() {
 
                 <div className="space-y-1.5">
                   <Label className="text-[10px] md:text-xs font-black text-slate-500 uppercase tracking-widest">Localização Base</Label>
-                  <Input required value={location} onChange={e => setLocation(e.target.value)} placeholder="Ex: Entreposto" className="h-10 md:h-9 text-sm" />
+                  <Input required value={location} onChange={e => setLocation(e.target.value)} placeholder="Ex: Almoxarifado Central" className="h-10 md:h-9 text-sm" />
                 </div>
 
                 <div className="pt-2">
@@ -292,18 +303,44 @@ export default function FurniturePage() {
           </Card>
         </div>
 
-        {/* COLUNA 2: LISTAGEM COM BUSCA E PAGINAÇÃO */}
+        {/* COLUNA 2: LISTAGEM COM BUSCA, FILTRO E PAGINAÇÃO */}
         <div className="xl:col-span-2 space-y-4 md:space-y-6">
           
-          {/* BARRA DE PESQUISA */}
-          <div className="relative">
-            <Search className="absolute left-3 md:left-4 top-3 md:top-3.5 w-4 h-4 md:w-5 md:h-5 text-slate-400" />
-            <Input 
-              placeholder="Procurar por modelo, patrimônio, tipo ou localização..." 
-              className="pl-10 md:pl-12 h-10 md:h-12 bg-white border-slate-200 shadow-sm rounded-xl text-sm"
-              value={search}
-              onChange={(e) => { setSearch(e.target.value); setCurrentPage(1); }}
-            />
+          {/* BARRA DE FILTROS SUPERIOR */}
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+            
+            {/* ABAS DE VISUALIZAÇÃO */}
+            <div className="flex bg-slate-100 p-1 rounded-xl w-full sm:w-auto shadow-inner border border-slate-200">
+              <button 
+                onClick={() => { setFilterView('ESTOQUE'); setCurrentPage(1); }}
+                className={`flex-1 sm:flex-none flex items-center justify-center gap-2 px-4 py-2 rounded-lg text-xs font-black uppercase transition-all ${filterView === 'ESTOQUE' ? 'bg-white shadow text-blue-600' : 'text-slate-500 hover:text-slate-800'}`}
+              >
+                <Package className="w-3.5 h-3.5" /> Em Estoque
+              </button>
+              <button 
+                onClick={() => { setFilterView('USO'); setCurrentPage(1); }}
+                className={`flex-1 sm:flex-none flex items-center justify-center gap-2 px-4 py-2 rounded-lg text-xs font-black uppercase transition-all ${filterView === 'USO' ? 'bg-white shadow text-amber-600' : 'text-slate-500 hover:text-slate-800'}`}
+              >
+                <MonitorPlay className="w-3.5 h-3.5" /> Em Uso
+              </button>
+              <button 
+                onClick={() => { setFilterView('TODOS'); setCurrentPage(1); }}
+                className={`flex-1 sm:flex-none flex items-center justify-center gap-2 px-4 py-2 rounded-lg text-xs font-black uppercase transition-all ${filterView === 'TODOS' ? 'bg-white shadow text-slate-900' : 'text-slate-500 hover:text-slate-800'}`}
+              >
+                <Layers className="w-3.5 h-3.5" /> Todos
+              </button>
+            </div>
+
+            {/* BARRA DE PESQUISA */}
+            <div className="relative w-full sm:w-64">
+              <Search className="absolute left-3 top-3 w-4 h-4 text-slate-400" />
+              <Input 
+                placeholder="Buscar item..." 
+                className="pl-9 h-10 bg-white border-slate-200 shadow-sm rounded-xl text-sm w-full"
+                value={search}
+                onChange={(e) => { setSearch(e.target.value); setCurrentPage(1); }}
+              />
+            </div>
           </div>
 
           <Card className="shadow-lg border-slate-200 overflow-hidden">
@@ -325,13 +362,12 @@ export default function FurniturePage() {
                     {loading ? (
                       <TableRow><TableCell colSpan={5} className="py-20 text-center text-slate-400 italic">Carregando inventário...</TableCell></TableRow>
                     ) : paginatedItems.length === 0 ? (
-                      <TableRow><TableCell colSpan={5} className="py-20 text-center text-slate-400 italic">Nenhum item encontrado.</TableCell></TableRow>
+                      <TableRow><TableCell colSpan={5} className="py-20 text-center text-slate-400 italic">Nenhum item encontrado nesta visão.</TableCell></TableRow>
                     ) : (
                       paginatedItems.map((item) => (
-                        <TableRow key={`desk-${item.id}`} className="group hover:bg-slate-50 transition-colors">
+                        <TableRow key={`desk-${item.id}`} className={`group transition-colors ${item.quantity === 0 ? 'bg-slate-50/50 opacity-75 hover:opacity-100' : 'hover:bg-slate-50'}`}>
                           <TableCell className="pl-6 py-4">
-                            <div className="font-bold text-slate-900">{item.name}</div>
-                            {/* Localização e Tipo na mesma coluna */}
+                            <div className={`font-bold ${item.quantity === 0 ? 'text-slate-600 line-through decoration-slate-300' : 'text-slate-900'}`}>{item.name}</div>
                             <div className="flex items-center gap-2 mt-1">
                               <span className="text-[10px] text-slate-500 font-black uppercase tracking-tighter bg-slate-100 px-2 py-0.5 rounded-md">
                                 {item.type}
@@ -348,7 +384,7 @@ export default function FurniturePage() {
                               {item.patrimony || 'S/N'}
                             </Badge>
                           </TableCell>
-                          <TableCell className="text-center font-black text-slate-700">
+                          <TableCell className={`text-center font-black ${item.quantity === 0 ? 'text-red-500' : 'text-slate-700'}`}>
                             {item.quantity}
                           </TableCell>
                           <TableCell>
@@ -379,7 +415,6 @@ export default function FurniturePage() {
                                   <History className="w-4 h-4" />
                                 </Button>
                               </Link>
-                              {/* NOVO BOTAO AQUI */}
                               <Button 
                                 variant="ghost" size="sm" 
                                 className="h-8 w-8 p-0 text-slate-400 hover:text-red-600 hover:bg-red-50"
@@ -402,13 +437,13 @@ export default function FurniturePage() {
                 {loading ? (
                   <div className="py-16 text-center text-slate-400 italic text-sm">Carregando inventário...</div>
                 ) : paginatedItems.length === 0 ? (
-                  <div className="py-16 text-center text-slate-400 italic text-sm">Nenhum item encontrado.</div>
+                  <div className="py-16 text-center text-slate-400 italic text-sm">Nenhum item encontrado nesta visão.</div>
                 ) : (
                   paginatedItems.map((item) => (
-                    <div key={`mob-${item.id}`} className="p-4 space-y-3 bg-white hover:bg-slate-50 transition-colors">
+                    <div key={`mob-${item.id}`} className={`p-4 space-y-3 transition-colors ${item.quantity === 0 ? 'bg-slate-50/50' : 'bg-white hover:bg-slate-50'}`}>
                       <div className="flex justify-between items-start gap-2">
                         <div className="min-w-0">
-                          <p className="font-bold text-slate-900 text-base truncate">{item.name}</p>
+                          <p className={`font-bold text-base truncate ${item.quantity === 0 ? 'text-slate-500 line-through' : 'text-slate-900'}`}>{item.name}</p>
                           <div className="flex flex-wrap items-center gap-1.5 mt-1">
                             <Badge variant="secondary" className="text-[9px] font-black uppercase bg-slate-100 text-slate-500">
                               {item.type}
@@ -437,7 +472,7 @@ export default function FurniturePage() {
                       <div className="flex items-center justify-between bg-slate-50 p-2 rounded-lg border border-slate-100">
                         <div className="flex items-center gap-2">
                           <span className="text-[10px] font-black text-slate-400 uppercase">QTD:</span>
-                          <span className="font-black text-sm text-slate-700">{item.quantity}</span>
+                          <span className={`font-black text-sm ${item.quantity === 0 ? 'text-red-500' : 'text-slate-700'}`}>{item.quantity}</span>
                         </div>
                         <Badge variant="outline" className="font-mono text-[9px] bg-white text-slate-500">
                           PAT: {item.patrimony || 'S/N'}
