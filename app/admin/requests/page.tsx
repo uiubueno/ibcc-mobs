@@ -17,6 +17,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
+import { Input } from "@/components/ui/input";
 import {
   Dialog,
   DialogContent,
@@ -37,6 +38,7 @@ export default function AdminRequestsPage() {
 
   const [selectedItemToDeliver, setSelectedItemToDeliver] = useState<any>(null);
   const [openDeliver, setOpenDeliver] = useState(false);
+  const [customPatrimony, setCustomPatrimony] = useState("");
 
   const [openRejectModal, setOpenRejectModal] = useState(false);
   const [rejectReason, setRejectReason] = useState("");
@@ -149,7 +151,11 @@ export default function AdminRequestsPage() {
           {
             method: "PATCH",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ furnitureId, status: "ENTREGUE" }),
+            body: JSON.stringify({ 
+              furnitureId, 
+              status: "ENTREGUE",
+              customPatrimony: !furnitureId ? customPatrimony : null
+            }),
           },
         );
         if (!res.ok) throw new Error("Erro na entrega");
@@ -162,7 +168,9 @@ export default function AdminRequestsPage() {
           fetchData();
           return furnitureId
             ? "Item vinculado e entregue! 🚚"
-            : "Entrega direta realizada com sucesso! 🚚";
+            : customPatrimony 
+              ? "Cadastrado e entregue com sucesso! 🚚" 
+              : "Entrega direta realizada com sucesso! 🚚";
         },
         error: (err) => `Erro: ${err.message}`,
       },
@@ -321,6 +329,7 @@ export default function AdminRequestsPage() {
                   <Button
                     onClick={() => {
                       setSelectedItemToDeliver(item);
+                      setCustomPatrimony("");
                       setOpenDeliver(true);
                     }}
                     className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs md:text-sm h-10 md:h-10"
@@ -511,7 +520,7 @@ export default function AdminRequestsPage() {
         </DialogContent>
       </Dialog>
 
-      {/* 🔥 MODAL TRIAGEM 100% BLINDADO 🔥 */}
+      {/* MODAL TRIAGEM */}
       <Dialog open={openTriage} onOpenChange={setOpenTriage}>
         <DialogContent className="max-w-3xl w-[95vw] rounded-2xl p-4 md:p-6">
           <DialogHeader>
@@ -525,10 +534,8 @@ export default function AdminRequestsPage() {
             {selectedRequest?.items?.map((item: any) => (
               <div
                 key={item.id}
-                // Agora o Flexbox é só para EMPILHAR as coisas (Texto em cima, Botões embaixo)
                 className={`p-3 md:p-5 rounded-xl border-2 flex flex-col gap-3 transition-colors ${itemStatuses[item.id] === "EM_SEPARACAO" ? "bg-green-50 border-green-200" : itemStatuses[item.id] === "EM_COMPRA" ? "bg-amber-50 border-amber-200" : "bg-red-50 border-red-200"}`}
               >
-                {/* 1. O Texto tem espaço total agora */}
                 <div className="w-full">
                   <p className="font-black text-slate-900 leading-tight text-base md:text-lg">
                     {item.quantity}x {item.type}
@@ -538,7 +545,6 @@ export default function AdminRequestsPage() {
                   </p>
                 </div>
                 
-                {/* 2. Os Botões ficam numa Grade exata de 3 colunas em baixo */}
                 <div className="grid grid-cols-3 gap-1 bg-white/80 p-1 rounded-lg border border-slate-200 shadow-sm w-full mt-1">
                   {["EM_SEPARACAO", "EM_COMPRA", "RECUSADO"].map((st) => (
                     <button
@@ -565,7 +571,7 @@ export default function AdminRequestsPage() {
         </DialogContent>
       </Dialog>
 
-      {/* MODAL ENTREGA */}
+      {/* 🔥 MODAL ENTREGA ATUALIZADO 🔥 */}
       <Dialog open={openDeliver} onOpenChange={setOpenDeliver}>
         <DialogContent className="max-w-2xl w-[95vw] bg-slate-50 border-slate-200 rounded-2xl md:rounded-xl p-4 md:p-6">
           <DialogHeader>
@@ -579,13 +585,13 @@ export default function AdminRequestsPage() {
 
           <div className="py-2 space-y-4 md:space-y-6">
             
-            {/* ENTREGA DIRETA */}
+            {/* ENTREGA DIRETA COM CAMPO OPCIONAL */}
             <div className="bg-slate-900 p-4 md:p-6 rounded-xl md:rounded-2xl shadow-lg relative overflow-hidden">
               <div className="absolute -top-4 -right-4 p-4 opacity-10 hidden md:block">
                 <PackageSearch className="w-24 h-24 text-white" />
               </div>
               <div className="relative z-10">
-                <div className="flex items-start gap-3 md:gap-4 mb-4 md:mb-5">
+                <div className="flex items-start gap-3 md:gap-4 mb-4">
                   <div className="bg-blue-500/20 p-2 md:p-2.5 rounded-lg md:rounded-xl border border-blue-500/30 shrink-0">
                     <Truck className="w-5 h-5 md:w-6 md:h-6 text-blue-400" />
                   </div>
@@ -594,16 +600,33 @@ export default function AdminRequestsPage() {
                       Entrega Direta
                     </h4>
                     <p className="text-[10px] md:text-xs text-slate-400 mt-1 font-medium leading-relaxed max-w-full md:max-w-[80%]">
-                      Para itens novos de compra ou sem etiqueta.
+                      Para itens recém comprados. Preencha o patrimônio para cadastrá-lo no estoque na hora.
                     </p>
                   </div>
                 </div>
-                <Button
-                  onClick={() => handleDeliver(null)}
-                  className="w-full bg-blue-600 hover:bg-blue-500 text-white font-black h-11 md:h-12 rounded-lg md:rounded-xl transition-all shadow-lg text-[10px] md:text-xs"
-                >
-                  CONFIRMAR ENTREGA (S/ ETIQUETA)
-                </Button>
+
+                <div className="space-y-3">
+                  <div className="bg-slate-800/60 p-3 rounded-lg border border-slate-700">
+                    <label className="text-[9px] md:text-[10px] text-slate-400 font-black uppercase tracking-widest block mb-1.5">
+                      Patrimônio (Opcional)
+                    </label>
+                    <Input
+                      placeholder="Ex: 123456"
+                      value={customPatrimony}
+                      onChange={(e) => setCustomPatrimony(e.target.value)}
+                      className="bg-slate-900 border-slate-700 text-white placeholder:text-slate-600 focus-visible:ring-blue-500 h-10 text-sm font-mono"
+                    />
+                  </div>
+
+                  <Button
+                    onClick={() => handleDeliver(null)}
+                    className={`w-full text-white font-black h-11 md:h-12 rounded-lg md:rounded-xl transition-all shadow-lg text-[10px] md:text-xs ${
+                      customPatrimony ? "bg-green-600 hover:bg-green-500" : "bg-blue-600 hover:bg-blue-500"
+                    }`}
+                  >
+                    CONFIRMAR ENTREGA {customPatrimony ? "C/ PATRIMÔNIO" : "(S/ ETIQUETA)"}
+                  </Button>
+                </div>
               </div>
             </div>
 

@@ -9,7 +9,7 @@ export async function PATCH(
 ) {
   const session = await auth();
   const resolvedParams = await params;
-  const id = resolvedParams.id; // ID DO ITEM
+  const id = resolvedParams.id; 
 
   if (!session || (session.user as any)?.role !== "ADMIN") {
     return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
@@ -17,7 +17,7 @@ export async function PATCH(
 
   try {
     const body = await req.json();
-    const { furnitureId, status } = body;
+    const { furnitureId, status, customPatrimony } = body; // <--- Recebe o customPatrimony
 
     if (status !== "ENTREGUE") {
       return NextResponse.json(
@@ -26,7 +26,6 @@ export async function PATCH(
       );
     }
 
-    // Busca o item que está sendo entregue
     const requestItem = await prisma.requestItem.findUnique({
       where: { id },
       include: { request: { include: { user: true } } },
@@ -38,18 +37,45 @@ export async function PATCH(
         { status: 404 },
       );
 
-    // Transação para atualizar tudo com segurança
     await prisma.$transaction(async (tx) => {
-      // Atualiza o status do item (Aceita null se for Entrega Direta)
+      let finalFurnitureId = furnitureId;
+
+      // 🔥 MÁGICA: Se for entrega direta MAS tem patrimônio informado (Cria no banco na hora)
+      if (!furnitureId && customPatrimony) {
+        const newFurniture = await tx.furniture.create({
+          data: {
+            name: requestItem.type, 
+            type: requestItem.type,
+            quantity: requestItem.quantity, // Dá entrada para poder dar saída logo abaixo
+            status: "NOVO",
+            location: "Estoque Central", 
+            patrimony: customPatrimony,
+          }
+        });
+
+        // Log de entrada
+        await tx.movement.create({
+          data: {
+            furnitureId: newFurniture.id,
+            type: "ENTRADA",
+            quantity: requestItem.quantity,
+            description: "Entrada automática via compra direta com plaqueta de patrimônio.",
+          },
+        });
+
+        finalFurnitureId = newFurniture.id;
+      }
+
+      // Atualiza o status do item
       await tx.requestItem.update({
         where: { id },
-        data: { status: "ENTREGUE", furnitureId: furnitureId || null },
+        data: { status: "ENTREGUE", furnitureId: finalFurnitureId || null },
       });
 
-      // Se veio do estoque, dá baixa
-      if (furnitureId) {
+      // Se veio do estoque (ou se acabou de ser criado pela mágica acima)
+      if (finalFurnitureId) {
         const currentFurniture = await tx.furniture.findUnique({
-          where: { id: furnitureId },
+          where: { id: finalFurnitureId },
         });
 
         if (
@@ -57,7 +83,7 @@ export async function PATCH(
           currentFurniture.quantity >= requestItem.quantity
         ) {
           await tx.furniture.update({
-            where: { id: furnitureId },
+            where: { id: finalFurnitureId },
             data: {
               location: requestItem.request.sector,
               quantity: currentFurniture.quantity - requestItem.quantity,
@@ -66,7 +92,7 @@ export async function PATCH(
 
           await tx.movement.create({
             data: {
-              furnitureId: furnitureId,
+              furnitureId: finalFurnitureId,
               type: "SAIDA",
               quantity: requestItem.quantity,
               description: `Entrega aprovada para o setor: ${requestItem.request.sector}`,
