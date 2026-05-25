@@ -258,25 +258,20 @@ export default function LoansPage() {
     );
   };
 
+  // 🔥 LÓGICA ATUALIZADA APONTANDO PARA A API DE LIMPEZA 🔥
   const handleReturnFromLoan = async (item: any) => {
     toast.promise(
-      fetch(`/api/furniture/${item.id}`, {
+      fetch(`/api/furniture/${item.id}/return-loan`, {
         method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ 
-          status: "USADO", 
-          quantity: 1, // Restaura a quantidade para 1 no estoque
-          location: "Estoque Central", 
-          borrower: null // Limpa o responsável
-        }),
+        headers: { "Content-Type": "application/json" }
       }),
       {
-        loading: "Baixando empréstimo...",
+        loading: "Processando devolução e limpando registro...",
         success: () => {
           fetchData();
-          return "Móvel retornado ao estoque! ✅";
+          return "Móvel retornado ao estoque 100% limpo! ✅";
         },
-        error: "Erro ao dar baixa.",
+        error: "Erro ao dar baixa no empréstimo.",
       },
     );
   };
