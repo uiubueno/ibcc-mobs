@@ -62,12 +62,9 @@ export default function FurniturePage() {
   const [editQty, setEditQty] = useState(0)
   const [openEdit, setOpenEdit] = useState(false)
 
-  // Estados para o Modal de Manutenção e Empréstimo
+  // Estados para o Modal de Manutenção (Oficina)
   const [maintenanceItem, setMaintenanceItem] = useState<any>(null)
   const [maintenanceQty, setMaintenanceQty] = useState('1')
-  const [isLoaning, setIsLoaning] = useState(false)
-  const [borrowerName, setBorrowerName] = useState('')
-  const [borrowerSector, setBorrowerSector] = useState('')
 
   // Estados: Modal de Devolução
   const [returnItem, setReturnItem] = useState<any>(null)
@@ -92,7 +89,7 @@ export default function FurniturePage() {
 
   useEffect(() => { fetchData() }, [])
 
-// --- LÓGICA DE BUSCA, FILTRO E PAGINAÇÃO ---
+  // --- LÓGICA DE BUSCA, FILTRO E PAGINAÇÃO ---
   const filteredItems = furnitureList.filter(item => {
     const matchesSearch = item.name.toLowerCase().includes(search.toLowerCase()) ||
       (item.patrimony && item.patrimony.toLowerCase().includes(search.toLowerCase())) ||
@@ -104,9 +101,7 @@ export default function FurniturePage() {
       filterView === 'TODOS' 
         ? true 
         : filterView === 'ESTOQUE' 
-          // Para ser estoque, a qtd deve ser > 0 e o status NÃO PODE ser empréstimo ou oficina
           ? item.quantity > 0 && item.status !== 'EMPRESTADO' && item.status !== 'MANUTENCAO'
-          // Para ser "Em Uso", a qtd é 0 OU o status é de EMPRÉSTIMO
           : item.quantity === 0 || item.status === 'EMPRESTADO';
 
     return matchesSearch && matchesView;
@@ -119,9 +114,6 @@ export default function FurniturePage() {
   const openMaintenanceModal = (item: any) => {
     setMaintenanceItem(item)
     setMaintenanceQty('1')
-    setIsLoaning(false)
-    setBorrowerName('')
-    setBorrowerSector(item.location || '')
   }
 
   // --- AÇÕES ---
@@ -183,28 +175,21 @@ export default function FurniturePage() {
   const confirmMaintenance = async () => {
     if (!maintenanceItem) return
 
-    if (isLoaning && (!borrowerSector.trim() || !borrowerName.trim())) {
-      toast.error('Preencha o setor e o nome de quem retirou a cadeira reserva.')
-      return
-    }
-
     toast.promise(
       fetch(`/api/furniture/${maintenanceItem.id}/maintenance`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
           status: 'MANUTENCAO', 
-          maintenanceQuantity: parseInt(maintenanceQty, 10),
-          borrowerSector: isLoaning ? borrowerSector : undefined,
-          borrowerName: isLoaning ? borrowerName : undefined
+          maintenanceQuantity: parseInt(maintenanceQty, 10)
         })
       }),
       {
-        loading: 'Registrando manutenção...',
+        loading: 'Enviando para oficina...',
         success: () => { 
           setMaintenanceItem(null)
           fetchData() 
-          return isLoaning ? 'Manutenção e registro de empréstimo criados!' : 'Status atualizado para manutenção!' 
+          return 'Status atualizado para manutenção!' 
         },
         error: 'Falha ao registrar operação.'
       }
@@ -694,7 +679,7 @@ export default function FurniturePage() {
         </DialogContent>
       </Dialog>
 
-      {/* 🔥 MODAL DE MANUTENÇÃO COM EMPRÉSTIMO LIVRE 🔥 */}
+      {/* 🔥 MODAL DE MANUTENÇÃO LIMPO 🔥 */}
       <Dialog open={!!maintenanceItem} onOpenChange={(open) => !open && setMaintenanceItem(null)}>
         <DialogContent className="max-w-md w-[95vw] rounded-2xl md:rounded-lg p-4 md:p-6">
           <DialogHeader>
@@ -708,7 +693,6 @@ export default function FurniturePage() {
           
           <div className="space-y-4 py-2">
             
-            {/* Bloco de Quantidade da Manutenção */}
             <div className="space-y-2">
               <Label className="text-[10px] md:text-xs font-black uppercase text-slate-500 tracking-widest block">
                 Qtd Quebrada / Avasariada
@@ -728,39 +712,6 @@ export default function FurniturePage() {
               </div>
             </div>
 
-            {/* Bloco de Empréstimo Simples */}
-            <div className="border-t pt-4 space-y-4">
-              <div className="flex items-center space-x-2 bg-slate-50 p-2 rounded-lg border border-slate-100">
-                <Switch id="loan-mode" checked={isLoaning} onCheckedChange={setIsLoaning} />
-                <Label htmlFor="loan-mode" className="text-xs font-black text-slate-700 uppercase cursor-pointer flex items-center gap-1.5">
-                  <RefreshCcw className="w-3.5 h-3.5 text-blue-500" /> Emprestar item reserva?
-                </Label>
-              </div>
-              
-              {isLoaning && (
-                <div className="space-y-3 p-4 bg-blue-50 border border-blue-100 rounded-xl animate-in fade-in zoom-in-95 duration-200">
-                  <div className="space-y-1.5">
-                    <Label className="text-[10px] font-black text-slate-500 uppercase">Setor de Destino</Label>
-                    <Input 
-                      value={borrowerSector} 
-                      onChange={e => setBorrowerSector(e.target.value)} 
-                      placeholder="Ex: Rouparia" 
-                      className="h-10 text-sm bg-white border-blue-200" 
-                    />
-                  </div>
-                  <div className="space-y-1.5">
-                    <Label className="text-[10px] font-black text-slate-500 uppercase">Nome de quem retirou</Label>
-                    <Input 
-                      value={borrowerName} 
-                      onChange={e => setBorrowerName(e.target.value)} 
-                      placeholder="Ex: João" 
-                      className="h-10 text-sm bg-white border-blue-200" 
-                    />
-                  </div>
-                </div>
-              )}
-            </div>
-
           </div>
 
           <DialogFooter className="border-t pt-4 flex-col sm:flex-row gap-2 sm:gap-0">
@@ -768,7 +719,7 @@ export default function FurniturePage() {
               Cancelar
             </Button>
             <Button onClick={confirmMaintenance} className="w-full sm:w-auto bg-amber-500 hover:bg-amber-600 text-white font-black h-11 md:h-10 text-[10px] md:text-xs rounded-lg shadow-lg shadow-amber-500/20 order-1 sm:order-2">
-              CONFIRMAR OPERAÇÃO
+              CONFIRMAR ENVIO
             </Button>
           </DialogFooter>
         </DialogContent>

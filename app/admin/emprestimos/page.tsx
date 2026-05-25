@@ -121,7 +121,7 @@ export default function LoansPage() {
     });
   };
 
-  const generatePDF = async () => {
+const generatePDF = async () => {
     if (loanedItems.length === 0) {
       return toast.error("Não há itens emprestados para gerar relatório.");
     }
@@ -156,7 +156,7 @@ export default function LoansPage() {
         doc.setTextColor(ibccPurple[0], ibccPurple[1], ibccPurple[2]);
         doc.setFont("helvetica", "bold");
         const titleY = lineY + 15;
-        doc.text("RELATÓRIO DE ATIVOS EMPRESTADOS", 105, titleY, {
+        doc.text("TERMO DE ATIVOS EMPRESTADOS", 105, titleY, {
           align: "center",
         });
 
@@ -195,8 +195,22 @@ export default function LoansPage() {
         console.error("Erro no logo do PDF.", err);
       }
 
-      const finalY = (doc as any).lastAutoTable.finalY + 25;
+      // 🔥 LÓGICA DAS ASSINATURAS ADICIONADA AQUI 🔥
+      const finalY = (doc as any).lastAutoTable.finalY + 35; // Dá um respiro depois da tabela
 
+      doc.setFontSize(9);
+      doc.setFont("helvetica", "normal");
+      doc.setTextColor(0);
+
+      // Assinatura 1: Hotelaria (Esquerda)
+      doc.line(20, finalY, 80, finalY);
+      doc.text("Hotelaria (Emissor)", 50, finalY + 5, { align: "center" });
+
+      // Assinatura 2: Solicitante (Direita)
+      doc.line(130, finalY, 190, finalY);
+      doc.text("Solicitante / Responsável", 160, finalY + 5, { align: "center" });
+
+      // Rodapé
       doc.setFontSize(8);
       doc.setTextColor(150);
       doc.text(
@@ -206,7 +220,7 @@ export default function LoansPage() {
         { align: "center" },
       );
 
-      doc.save(`Relatorio_Emprestimos_${date.replace(/\//g, "-")}.pdf`);
+      doc.save(`Termo_Emprestimos_${date.replace(/\//g, "-")}.pdf`);
       toast.success("Relatório gerado com sucesso!", { id: toastId });
     } catch (error) {
       toast.error("Erro ao gerar PDF.", { id: toastId });

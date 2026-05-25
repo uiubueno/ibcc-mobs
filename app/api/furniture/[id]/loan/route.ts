@@ -14,35 +14,48 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   try {
     const { borrowerName, borrowerSector } = await req.json()
 
-    // 1. Busca o item no estoque
     const itemOrigem = await prisma.furniture.findUnique({ where: { id } })
     
     if (!itemOrigem || itemOrigem.quantity <= 0) {
       return NextResponse.json({ error: 'Item indisponível no estoque' }, { status: 400 })
     }
 
-    // 2. Transação para garantir consistência
     const result = await prisma.$transaction(async (tx) => {
-      // Subtrai a quantidade do estoque original
-      await tx.furniture.update({
-        where: { id },
-        data: { quantity: itemOrigem.quantity - 1 }
-      })
+      let loanedItem;
 
-      // Cria o registro de Empréstimo (Item "Fantasma")
-      const loanedItem = await tx.furniture.create({
-        data: {
-          name: `Empréstimo: ${itemOrigem.name}`,
-          type: itemOrigem.type,
-          quantity: 1, // Mantemos 1 para controle na lista
-          status: 'EMPRESTADO',
-          location: borrowerSector,
-          borrower: borrowerName,
-          patrimony: itemOrigem.patrimony
-        }
-      })
+      // 🔥 REGRA NOVA: Se for um item único (como móveis com patrimônio), apenas ATUALIZA o mesmo item.
+      if (itemOrigem.quantity === 1) {
+        loanedItem = await tx.furniture.update({
+          where: { id },
+          data: {
+            name: `Empréstimo: ${itemOrigem.name}`,
+            status: 'EMPRESTADO',
+            location: borrowerSector,
+            borrower: borrowerName
+          }
+        })
+      } 
+      // Se for um Lote (ex: quantidade 10), aí sim ele divide o lote e cria um item separado
+      else {
+        await tx.furniture.update({
+          where: { id },
+          data: { quantity: itemOrigem.quantity - 1 }
+        })
 
-      // Cria o log de movimentação
+        loanedItem = await tx.furniture.create({
+          data: {
+            name: `Empréstimo: ${itemOrigem.name}`,
+            type: itemOrigem.type,
+            quantity: 1,
+            status: 'EMPRESTADO',
+            location: borrowerSector,
+            borrower: borrowerName,
+            patrimony: itemOrigem.patrimony
+          }
+        })
+      }
+
+      // Registra o movimento no histórico
       await tx.movement.create({
         data: {
           furnitureId: loanedItem.id,
