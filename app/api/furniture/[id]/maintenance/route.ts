@@ -4,18 +4,22 @@ import { prisma } from '@/lib/prisma'
 
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const session = await auth()
-  const { id } = await params
+  const resolvedParams = await params
+  const id = resolvedParams.id
 
-  // AQUI ESTÁ O AJUSTE QUE LIBERA O DEPLOY NA VERCEL
   if (!session || (session.user as any)?.role !== 'ADMIN') {
     return NextResponse.json({ error: 'Não autorizado' }, { status: 401 })
   }
 
   try {
     const body = await req.json()
-    const { status, maintenanceQuantity } = body 
+    // Agora recebemos apenas o Setor e o Nome de quem levou a cadeira reserva
+    const { status, maintenanceQuantity, borrowerName, borrowerSector } = body 
 
-    // Primeiro, vamos ver como está esse item no banco hoje
+    if (status !== 'MANUTENCAO') {
+      return NextResponse.json({ error: 'Status inválido para esta rota' }, { status: 400 })
+    }
+
     const currentFurniture = await prisma.furniture.findUnique({
       where: { id }
     })
@@ -24,50 +28,80 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
       return NextResponse.json({ error: 'Item não encontrado' }, { status: 404 })
     }
 
-    // Se ele tem patrimônio (ou seja, a quantidade é 1) OU a quantidade enviada é igual ao total,
-    // a gente só atualiza a linha inteira normal.
-    if (currentFurniture.patrimony || maintenanceQuantity === currentFurniture.quantity || !maintenanceQuantity) {
-      const updated = await prisma.furniture.update({
-        where: { id },
-        data: { status }
-      })
-      return NextResponse.json(updated)
-    }
+    const result = await prisma.$transaction(async (tx) => {
+      
+      // ----------------------------------------------------------------
+      // PARTE 1: ENVIAR O ITEM ORIGINAL PARA MANUTENÇÃO
+      // ----------------------------------------------------------------
+      if (currentFurniture.patrimony || maintenanceQuantity === currentFurniture.quantity || !maintenanceQuantity) {
+        await tx.furniture.update({
+          where: { id },
+          data: { status: 'MANUTENCAO' }
+        })
+      } else {
+        const quantityToMove = parseInt(maintenanceQuantity, 10)
+        if (quantityToMove >= currentFurniture.quantity || quantityToMove <= 0 || isNaN(quantityToMove)) {
+          throw new Error('Quantidade inválida para divisão de manutenção')
+        }
 
-    // AGORA A MÁGICA DA DIVISÃO (SPLIT):
-    // Se não tem patrimônio e pediram pra mandar SÓ UMA PARTE pra manutenção...
-    const quantityToMove = parseInt(maintenanceQuantity, 10)
-    
-    if (quantityToMove >= currentFurniture.quantity || quantityToMove <= 0 || isNaN(quantityToMove)) {
-      return NextResponse.json({ error: 'Quantidade inválida para divisão' }, { status: 400 })
-    }
+        await tx.furniture.update({
+          where: { id },
+          data: { quantity: currentFurniture.quantity - quantityToMove }
+        })
 
-    // Usamos uma Transação ($transaction) para garantir que ou faz tudo, ou não faz nada.
-    const [updatedOriginal, newMaintenanceItem] = await prisma.$transaction([
-      // 1. Subtrai a quantidade do item original (o que ficou bom)
-      prisma.furniture.update({
-        where: { id },
-        data: { quantity: currentFurniture.quantity - quantityToMove }
-      }),
-      // 2. Cria um novo registro filhote idêntico, mas com o status de MANUTENÇÃO e a quantidade quebrada
-      prisma.furniture.create({
+        await tx.furniture.create({
+          data: {
+            name: currentFurniture.name,
+            type: currentFurniture.type,
+            quantity: quantityToMove,
+            status: 'MANUTENCAO',
+            location: currentFurniture.location,
+          }
+        })
+      }
+
+      await tx.movement.create({
         data: {
-          name: currentFurniture.name,
-          type: currentFurniture.type,
-          quantity: quantityToMove,
-          status: 'MANUTENCAO',
-          location: currentFurniture.location,
-          // Não copia o patrimônio pois se ele está sendo dividido, ele não tinha patrimônio único.
+          furnitureId: id,
+          type: 'MANUTENCAO',
+          quantity: maintenanceQuantity ? parseInt(maintenanceQuantity, 10) : currentFurniture.quantity,
+          description: `Item enviado para a oficina. Setor de origem: ${currentFurniture.location}`,
         }
       })
-    ])
 
-    return NextResponse.json({ message: "Divisão realizada com sucesso", updatedOriginal, newMaintenanceItem })
+      // ----------------------------------------------------------------
+      // PARTE 2: LÓGICA DO EMPRÉSTIMO RESERVA (SEM CADASTRO PRÉVIO)
+      // ----------------------------------------------------------------
+      if (borrowerName) {
+        // Cria um item genérico "fantasma" no banco só para controle visual
+        const newLoanedItem = await tx.furniture.create({
+          data: {
+            name: `Reserva Emprestada (${currentFurniture.name})`,
+            type: currentFurniture.type,
+            quantity: 0, // Fica com 0 para ir direto para a aba de "Em Uso"
+            status: 'EMPRESTADO',
+            location: borrowerSector || currentFurniture.location,
+            borrower: borrowerName
+          }
+        })
 
-  } catch (error) {
+        await tx.movement.create({
+          data: {
+            furnitureId: newLoanedItem.id,
+            type: 'EMPRESTIMO',
+            quantity: 1,
+            description: `Item reserva de controle emprestado para o setor ${borrowerSector || currentFurniture.location}. Retirado por: ${borrowerName}`,
+          }
+        })
+      }
+
+      return { success: true }
+    })
+
+    return NextResponse.json({ message: "Manutenção registrada com sucesso!", result })
+
+  } catch (error: any) {
     console.error("Erro ao processar manutenção:", error)
-    return NextResponse.json({ error: 'Erro ao processar manutenção' }, { status: 500 })
+    return NextResponse.json({ error: error.message || 'Erro ao processar manutenção' }, { status: 500 })
   }
 }
-
-// empurrando para a vercel ler o codigo novo

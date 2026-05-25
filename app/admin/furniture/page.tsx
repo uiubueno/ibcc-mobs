@@ -20,7 +20,9 @@ import {
   MapPin,
   Trash2,
   Archive,
-  MonitorPlay
+  MonitorPlay,
+  CornerDownLeft,
+  RefreshCcw 
 } from 'lucide-react'
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -42,7 +44,7 @@ export default function FurniturePage() {
 
   // Estados de Busca, Filtro e Paginação
   const [search, setSearch] = useState('')
-  const [filterView, setFilterView] = useState<'ESTOQUE' | 'USO' | 'TODOS'>('ESTOQUE') // NOVO ESTADO AQUI
+  const [filterView, setFilterView] = useState<'ESTOQUE' | 'USO' | 'TODOS'>('ESTOQUE')
   const [currentPage, setCurrentPage] = useState(1)
   const itemsPerPage = 8
 
@@ -60,9 +62,18 @@ export default function FurniturePage() {
   const [editQty, setEditQty] = useState(0)
   const [openEdit, setOpenEdit] = useState(false)
 
-  // Estados para o Modal de Manutenção
+  // Estados para o Modal de Manutenção e Empréstimo
   const [maintenanceItem, setMaintenanceItem] = useState<any>(null)
   const [maintenanceQty, setMaintenanceQty] = useState('1')
+  const [isLoaning, setIsLoaning] = useState(false)
+  const [borrowerName, setBorrowerName] = useState('')
+  const [borrowerSector, setBorrowerSector] = useState('')
+
+  // Estados: Modal de Devolução
+  const [returnItem, setReturnItem] = useState<any>(null)
+  const [returnQty, setReturnQty] = useState('1')
+  const [returnLocation, setReturnLocation] = useState('Almoxarifado Central')
+  const [returnStatus, setReturnStatus] = useState('USADO')
 
   const fetchData = async () => {
     try {
@@ -83,13 +94,12 @@ export default function FurniturePage() {
 
   // --- LÓGICA DE BUSCA, FILTRO E PAGINAÇÃO ---
   const filteredItems = furnitureList.filter(item => {
-    // 1. Filtro de Texto
     const matchesSearch = item.name.toLowerCase().includes(search.toLowerCase()) ||
       (item.patrimony && item.patrimony.toLowerCase().includes(search.toLowerCase())) ||
       item.type.toLowerCase().includes(search.toLowerCase()) ||
-      (item.location && item.location.toLowerCase().includes(search.toLowerCase()));
+      (item.location && item.location.toLowerCase().includes(search.toLowerCase())) ||
+      (item.borrower && item.borrower.toLowerCase().includes(search.toLowerCase()));
 
-    // 2. Filtro de Abas (Estoque vs Uso)
     const matchesView = 
       filterView === 'TODOS' ? true :
       filterView === 'ESTOQUE' ? item.quantity > 0 :
@@ -100,6 +110,15 @@ export default function FurniturePage() {
 
   const totalPages = Math.ceil(filteredItems.length / itemsPerPage)
   const paginatedItems = filteredItems.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage)
+
+  // --- FUNÇÕES AUXILIARES ---
+  const openMaintenanceModal = (item: any) => {
+    setMaintenanceItem(item)
+    setMaintenanceQty('1')
+    setIsLoaning(false)
+    setBorrowerName('')
+    setBorrowerSector(item.location || '')
+  }
 
   // --- AÇÕES ---
   const handleEditSubmit = async () => {
@@ -125,6 +144,29 @@ export default function FurniturePage() {
     )
   }
 
+  const handleReturnSubmit = async () => {
+    toast.promise(
+      fetch(`/api/furniture/${returnItem.id}/return`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          quantity: Number(returnQty),
+          location: returnLocation,
+          status: returnStatus
+        })
+      }),
+      {
+        loading: 'Registrando devolução e histórico...',
+        success: () => {
+          setReturnItem(null)
+          fetchData()
+          return 'Mobiliário devolvido ao estoque com sucesso!'
+        },
+        error: 'Erro ao devolver item.'
+      }
+    )
+  }
+
   const handleQuantityChange = (val: string) => {
     setQuantity(val)
     if (isBulk) {
@@ -136,19 +178,31 @@ export default function FurniturePage() {
 
   const confirmMaintenance = async () => {
     if (!maintenanceItem) return
+
+    if (isLoaning && (!borrowerSector.trim() || !borrowerName.trim())) {
+      toast.error('Preencha o setor e o nome de quem retirou a cadeira reserva.')
+      return
+    }
+
     toast.promise(
       fetch(`/api/furniture/${maintenanceItem.id}/maintenance`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
           status: 'MANUTENCAO', 
-          maintenanceQuantity: parseInt(maintenanceQty, 10)
+          maintenanceQuantity: parseInt(maintenanceQty, 10),
+          borrowerSector: isLoaning ? borrowerSector : undefined,
+          borrowerName: isLoaning ? borrowerName : undefined
         })
       }),
       {
-        loading: 'Enviando para reparo...',
-        success: () => { setMaintenanceItem(null); fetchData(); return 'Status atualizado!' },
-        error: 'Falha na manutenção.'
+        loading: 'Registrando manutenção...',
+        success: () => { 
+          setMaintenanceItem(null)
+          fetchData() 
+          return isLoaning ? 'Manutenção e registro de empréstimo criados!' : 'Status atualizado para manutenção!' 
+        },
+        error: 'Falha ao registrar operação.'
       }
     )
   }
@@ -187,7 +241,7 @@ export default function FurniturePage() {
         loading: 'Apagando registro...',
         success: () => {
           fetchData()
-          return 'Mobiliário excluído com sucesso!'
+          return 'Registro excluído com sucesso!'
         },
         error: 'Erro ao tentar apagar.'
       }
@@ -205,7 +259,6 @@ export default function FurniturePage() {
         </div>
       </header>
 
-      {/* GRID RESPONSIVO: Empilha no celular, divide em 3 colunas no desktop */}
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-6 md:gap-8 items-start">
         
         {/* COLUNA 1: CADASTRO */}
@@ -303,13 +356,10 @@ export default function FurniturePage() {
           </Card>
         </div>
 
-        {/* COLUNA 2: LISTAGEM COM BUSCA, FILTRO E PAGINAÇÃO */}
+        {/* COLUNA 2: LISTAGEM */}
         <div className="xl:col-span-2 space-y-4 md:space-y-6">
           
-          {/* BARRA DE FILTROS SUPERIOR */}
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-            
-            {/* ABAS DE VISUALIZAÇÃO */}
             <div className="flex bg-slate-100 p-1 rounded-xl w-full sm:w-auto shadow-inner border border-slate-200">
               <button 
                 onClick={() => { setFilterView('ESTOQUE'); setCurrentPage(1); }}
@@ -331,11 +381,10 @@ export default function FurniturePage() {
               </button>
             </div>
 
-            {/* BARRA DE PESQUISA */}
             <div className="relative w-full sm:w-64">
               <Search className="absolute left-3 top-3 w-4 h-4 text-slate-400" />
               <Input 
-                placeholder="Buscar item..." 
+                placeholder="Buscar item ou usuário..." 
                 className="pl-9 h-10 bg-white border-slate-200 shadow-sm rounded-xl text-sm w-full"
                 value={search}
                 onChange={(e) => { setSearch(e.target.value); setCurrentPage(1); }}
@@ -346,7 +395,7 @@ export default function FurniturePage() {
           <Card className="shadow-lg border-slate-200 overflow-hidden">
             <CardContent className="p-0">
               
-              {/* VISÃO DESKTOP (Tabela Completa) */}
+              {/* VISÃO DESKTOP */}
               <div className="hidden md:block">
                 <Table>
                   <TableHeader className="bg-slate-50">
@@ -368,13 +417,21 @@ export default function FurniturePage() {
                         <TableRow key={`desk-${item.id}`} className={`group transition-colors ${item.quantity === 0 ? 'bg-slate-50/50 opacity-75 hover:opacity-100' : 'hover:bg-slate-50'}`}>
                           <TableCell className="pl-6 py-4">
                             <div className={`font-bold ${item.quantity === 0 ? 'text-slate-600 line-through decoration-slate-300' : 'text-slate-900'}`}>{item.name}</div>
-                            <div className="flex items-center gap-2 mt-1">
-                              <span className="text-[10px] text-slate-500 font-black uppercase tracking-tighter bg-slate-100 px-2 py-0.5 rounded-md">
-                                {item.type}
-                              </span>
-                              {item.location && (
-                                <span className="flex items-center gap-1 text-[10px] text-slate-400 font-bold uppercase tracking-wider">
-                                  <MapPin className="w-3 h-3" /> {item.location}
+                            <div className="flex flex-col gap-1 mt-1">
+                              <div className="flex items-center gap-2">
+                                <span className="text-[10px] text-slate-500 font-black uppercase tracking-tighter bg-slate-100 px-2 py-0.5 rounded-md">
+                                  {item.type}
+                                </span>
+                                {item.location && (
+                                  <span className="flex items-center gap-1 text-[10px] text-slate-400 font-bold uppercase tracking-wider">
+                                    <MapPin className="w-3 h-3" /> {item.location}
+                                  </span>
+                                )}
+                              </div>
+                              {/* Exibe com quem está se for emprestado */}
+                              {item.borrower && (
+                                <span className="text-[10px] font-bold text-purple-600 uppercase tracking-widest mt-1">
+                                  Retirado por: {item.borrower}
                                 </span>
                               )}
                             </div>
@@ -385,27 +442,39 @@ export default function FurniturePage() {
                             </Badge>
                           </TableCell>
                           <TableCell className={`text-center font-black ${item.quantity === 0 ? 'text-red-500' : 'text-slate-700'}`}>
-                            {item.quantity}
+                            {item.status === 'EMPRESTADO' ? 1 : item.quantity}
                           </TableCell>
                           <TableCell>
-                            <Badge className={`text-[9px] font-black uppercase ${item.status === 'NOVO' ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'}`}>
+                            <Badge className={`text-[9px] font-black uppercase ${item.status === 'NOVO' ? 'bg-green-100 text-green-700' : item.status === 'CONSERTO' ? 'bg-red-100 text-red-700' : item.status === 'EMPRESTADO' ? 'bg-purple-100 text-purple-700' : 'bg-amber-100 text-amber-700'}`}>
                               {item.status}
                             </Badge>
                           </TableCell>
                           <TableCell className="text-right pr-6">
                             <div className="flex justify-end gap-1">
-                              <Button 
-                                variant="ghost" size="sm" 
-                                className="h-8 w-8 p-0 text-slate-400 hover:text-blue-600 hover:bg-blue-50"
-                                onClick={() => { setEditingItem(item); setEditQty(item.quantity); setOpenEdit(true); }}
-                                title="Ajustar Saldo"
-                              >
-                                <Edit3 className="w-4 h-4" />
-                              </Button>
+                              {item.quantity === 0 ? (
+                                <Button 
+                                  variant="ghost" size="sm" 
+                                  className="h-8 w-8 p-0 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50"
+                                  onClick={() => { setReturnItem(item); setReturnQty('1'); setReturnStatus('USADO'); }}
+                                  title="Devolver ao Estoque"
+                                >
+                                  <CornerDownLeft className="w-4 h-4" />
+                                </Button>
+                              ) : (
+                                <Button 
+                                  variant="ghost" size="sm" 
+                                  className="h-8 w-8 p-0 text-slate-400 hover:text-blue-600 hover:bg-blue-50"
+                                  onClick={() => { setEditingItem(item); setEditQty(item.quantity); setOpenEdit(true); }}
+                                  title="Ajustar Saldo Manual"
+                                >
+                                  <Edit3 className="w-4 h-4" />
+                                </Button>
+                              )}
+
                               <Button 
                                 variant="ghost" size="sm" 
                                 className="h-8 w-8 p-0 text-slate-400 hover:text-amber-600 hover:bg-amber-50"
-                                onClick={() => { setMaintenanceItem(item); setMaintenanceQty('1'); }}
+                                onClick={() => openMaintenanceModal(item)}
                                 title="Enviar para Oficina"
                               >
                                 <Wrench className="w-4 h-4" />
@@ -432,7 +501,7 @@ export default function FurniturePage() {
                 </Table>
               </div>
 
-              {/* VISÃO MOBILE (Lista de Cards) */}
+              {/* VISÃO MOBILE */}
               <div className="md:hidden divide-y divide-slate-100">
                 {loading ? (
                   <div className="py-16 text-center text-slate-400 italic text-sm">Carregando inventário...</div>
@@ -444,19 +513,26 @@ export default function FurniturePage() {
                       <div className="flex justify-between items-start gap-2">
                         <div className="min-w-0">
                           <p className={`font-bold text-base truncate ${item.quantity === 0 ? 'text-slate-500 line-through' : 'text-slate-900'}`}>{item.name}</p>
-                          <div className="flex flex-wrap items-center gap-1.5 mt-1">
-                            <Badge variant="secondary" className="text-[9px] font-black uppercase bg-slate-100 text-slate-500">
-                              {item.type}
-                            </Badge>
-                            {item.location && (
-                              <span className="flex items-center gap-1 text-[9px] font-bold uppercase text-slate-400">
-                                <MapPin className="w-3 h-3" /> {item.location}
-                              </span>
+                          <div className="flex flex-col gap-1 mt-1">
+                            <div className="flex flex-wrap items-center gap-1.5">
+                              <Badge variant="secondary" className="text-[9px] font-black uppercase bg-slate-100 text-slate-500">
+                                {item.type}
+                              </Badge>
+                              {item.location && (
+                                <span className="flex items-center gap-1 text-[9px] font-bold uppercase text-slate-400">
+                                  <MapPin className="w-3 h-3" /> {item.location}
+                                </span>
+                              )}
+                            </div>
+                            {item.borrower && (
+                                <span className="text-[9px] font-bold text-purple-600 uppercase tracking-widest mt-0.5">
+                                  Retirado por: {item.borrower}
+                                </span>
                             )}
                           </div>
                         </div>
                         <div className="flex flex-col items-end gap-2">
-                          <Badge className={`text-[9px] font-black uppercase shrink-0 ${item.status === 'NOVO' ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'}`}>
+                          <Badge className={`text-[9px] font-black uppercase shrink-0 ${item.status === 'NOVO' ? 'bg-green-100 text-green-700' : item.status === 'CONSERTO' ? 'bg-red-100 text-red-700' : item.status === 'EMPRESTADO' ? 'bg-purple-100 text-purple-700' : 'bg-amber-100 text-amber-700'}`}>
                             {item.status}
                           </Badge>
                           <button 
@@ -472,7 +548,9 @@ export default function FurniturePage() {
                       <div className="flex items-center justify-between bg-slate-50 p-2 rounded-lg border border-slate-100">
                         <div className="flex items-center gap-2">
                           <span className="text-[10px] font-black text-slate-400 uppercase">QTD:</span>
-                          <span className={`font-black text-sm ${item.quantity === 0 ? 'text-red-500' : 'text-slate-700'}`}>{item.quantity}</span>
+                          <span className={`font-black text-sm ${item.quantity === 0 ? 'text-red-500' : 'text-slate-700'}`}>
+                            {item.status === 'EMPRESTADO' ? 1 : item.quantity}
+                          </span>
                         </div>
                         <Badge variant="outline" className="font-mono text-[9px] bg-white text-slate-500">
                           PAT: {item.patrimony || 'S/N'}
@@ -480,17 +558,28 @@ export default function FurniturePage() {
                       </div>
 
                       <div className="flex gap-2 pt-1 border-t border-slate-50">
-                        <Button 
-                          variant="ghost" 
-                          className="flex-1 h-9 text-[10px] font-bold text-blue-600 bg-blue-50 hover:bg-blue-100"
-                          onClick={() => { setEditingItem(item); setEditQty(item.quantity); setOpenEdit(true); }}
-                        >
-                          <Edit3 className="w-3.5 h-3.5 mr-1.5" /> SALDO
-                        </Button>
+                        {item.quantity === 0 ? (
+                           <Button 
+                             variant="ghost" 
+                             className="flex-1 h-9 text-[10px] font-bold text-emerald-600 bg-emerald-50 hover:bg-emerald-100"
+                             onClick={() => { setReturnItem(item); setReturnQty('1'); setReturnStatus('USADO'); }}
+                           >
+                             <CornerDownLeft className="w-3.5 h-3.5 mr-1.5" /> DEVOLVER
+                           </Button>
+                        ) : (
+                           <Button 
+                             variant="ghost" 
+                             className="flex-1 h-9 text-[10px] font-bold text-blue-600 bg-blue-50 hover:bg-blue-100"
+                             onClick={() => { setEditingItem(item); setEditQty(item.quantity); setOpenEdit(true); }}
+                           >
+                             <Edit3 className="w-3.5 h-3.5 mr-1.5" /> SALDO
+                           </Button>
+                        )}
+
                         <Button 
                           variant="ghost" 
                           className="flex-1 h-9 text-[10px] font-bold text-amber-600 bg-amber-50 hover:bg-amber-100"
-                          onClick={() => { setMaintenanceItem(item); setMaintenanceQty('1'); }}
+                          onClick={() => openMaintenanceModal(item)}
                         >
                           <Wrench className="w-3.5 h-3.5 mr-1.5" /> OFICINA
                         </Button>
@@ -505,7 +594,6 @@ export default function FurniturePage() {
                 )}
               </div>
 
-              {/* PAGINAÇÃO RESPONSIVA */}
               <div className="p-3 md:p-4 bg-slate-50 border-t flex items-center justify-between">
                 <span className="text-[9px] md:text-[10px] font-black text-slate-400 uppercase tracking-widest">
                   Página {currentPage} de {totalPages || 1}
@@ -526,7 +614,52 @@ export default function FurniturePage() {
 
       {/* --- MODAIS RESPONSIVOS --- */}
 
-      {/* MODAL DE EDIÇÃO RÁPIDA DE QUANTIDADE */}
+      {/* MODAL DE DEVOLUÇÃO */}
+      <Dialog open={!!returnItem} onOpenChange={(open) => !open && setReturnItem(null)}>
+        <DialogContent className="max-w-md w-[95vw] rounded-2xl md:rounded-lg p-4 md:p-6">
+          <DialogHeader>
+            <DialogTitle className="text-lg md:text-xl font-black text-emerald-600 uppercase flex items-center gap-2">
+              <CornerDownLeft className="w-5 h-5" /> Devolução ao Estoque
+            </DialogTitle>
+            <DialogDescription className="font-medium text-slate-600 text-xs md:text-sm">
+              Retornando do setor: <span className="font-bold text-slate-900">{returnItem?.location}</span>
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="py-2 space-y-4">
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-1.5">
+                <Label className="text-[10px] md:text-xs font-black text-slate-500 uppercase tracking-widest">Qtd Retornando</Label>
+                <Input type="number" min="1" value={returnQty} onChange={(e) => setReturnQty(e.target.value)} className="h-10 text-sm font-black" />
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-[10px] md:text-xs font-black text-slate-500 uppercase tracking-widest">Condição Atual</Label>
+                <Select value={returnStatus} onValueChange={setReturnStatus}>
+                  <SelectTrigger className="h-10 text-sm"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="NOVO">Novo</SelectItem>
+                    <SelectItem value="USADO">Usado (Bom)</SelectItem>
+                    <SelectItem value="CONSERTO">Precisa de Conserto</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-[10px] md:text-xs font-black text-slate-500 uppercase tracking-widest">Onde será guardado agora?</Label>
+              <Input value={returnLocation} onChange={(e) => setReturnLocation(e.target.value)} placeholder="Ex: Almoxarifado Central" className="h-10 text-sm" />
+            </div>
+          </div>
+
+          <DialogFooter className="border-t pt-4 flex-col sm:flex-row gap-2 sm:gap-0">
+            <Button variant="outline" onClick={() => setReturnItem(null)} className="w-full sm:w-auto h-11 md:h-10 order-2 sm:order-1 font-bold">Cancelar</Button>
+            <Button onClick={handleReturnSubmit} className="w-full sm:w-auto h-11 md:h-10 order-1 sm:order-2 bg-emerald-600 hover:bg-emerald-700 text-white font-black tracking-widest text-[10px] md:text-xs">
+              CONFIRMAR DEVOLUÇÃO
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* MODAL DE EDIÇÃO */}
       <Dialog open={openEdit} onOpenChange={setOpenEdit}>
         <DialogContent className="max-w-md w-[95vw] rounded-2xl md:rounded-lg p-4 md:p-6">
           <DialogHeader>
@@ -557,35 +690,89 @@ export default function FurniturePage() {
         </DialogContent>
       </Dialog>
 
-      {/* MODAL DE MANUTENÇÃO */}
+      {/* 🔥 MODAL DE MANUTENÇÃO COM EMPRÉSTIMO LIVRE 🔥 */}
       <Dialog open={!!maintenanceItem} onOpenChange={(open) => !open && setMaintenanceItem(null)}>
-        <DialogContent className="max-w-sm w-[95vw] rounded-2xl md:rounded-lg p-4 md:p-6">
+        <DialogContent className="max-w-md w-[95vw] rounded-2xl md:rounded-lg p-4 md:p-6">
           <DialogHeader>
             <DialogTitle className="text-lg md:text-xl font-black text-amber-600 uppercase flex items-center gap-2">
-              <Wrench className="w-5 h-5" /> Reparo de Estoque
+              <Wrench className="w-5 h-5" /> Oficina / Reparo
             </DialogTitle>
+            <DialogDescription className="font-medium text-slate-500 text-xs md:text-sm">
+              Enviando <strong className="text-slate-800">{maintenanceItem?.name}</strong> para conserto.
+            </DialogDescription>
           </DialogHeader>
           
-          <div className="space-y-3 py-4">
-            <Label className="text-[10px] md:text-xs font-black uppercase text-slate-500 tracking-widest text-center block">
-              Qtd a enviar para a oficina
-            </Label>
-            <div className="flex items-center justify-center gap-3 bg-slate-50 p-4 rounded-xl border border-slate-100">
-              <Input type="number" min="1" max={maintenanceItem?.quantity} value={maintenanceQty} onChange={e => setMaintenanceQty(e.target.value)} className="font-black text-center h-12 w-20 text-xl border-slate-200" />
-              <span className="text-[10px] md:text-xs font-bold text-slate-400 uppercase">de {maintenanceItem?.quantity} un</span>
+          <div className="space-y-4 py-2">
+            
+            {/* Bloco de Quantidade da Manutenção */}
+            <div className="space-y-2">
+              <Label className="text-[10px] md:text-xs font-black uppercase text-slate-500 tracking-widest block">
+                Qtd Quebrada / Avasariada
+              </Label>
+              <div className="flex items-center gap-3 bg-slate-50 p-3 rounded-xl border border-slate-100">
+                <Input 
+                  type="number" 
+                  min="1" 
+                  max={maintenanceItem?.quantity} 
+                  value={maintenanceQty} 
+                  onChange={e => setMaintenanceQty(e.target.value)} 
+                  className="font-black text-center h-10 w-24 text-lg border-slate-200 bg-white" 
+                />
+                <span className="text-[10px] md:text-xs font-bold text-slate-400 uppercase">
+                  de {maintenanceItem?.quantity} un disponíveis
+                </span>
+              </div>
             </div>
+
+            {/* Bloco de Empréstimo Simples */}
+            <div className="border-t pt-4 space-y-4">
+              <div className="flex items-center space-x-2 bg-slate-50 p-2 rounded-lg border border-slate-100">
+                <Switch id="loan-mode" checked={isLoaning} onCheckedChange={setIsLoaning} />
+                <Label htmlFor="loan-mode" className="text-xs font-black text-slate-700 uppercase cursor-pointer flex items-center gap-1.5">
+                  <RefreshCcw className="w-3.5 h-3.5 text-blue-500" /> Emprestar item reserva?
+                </Label>
+              </div>
+              
+              {isLoaning && (
+                <div className="space-y-3 p-4 bg-blue-50 border border-blue-100 rounded-xl animate-in fade-in zoom-in-95 duration-200">
+                  <div className="space-y-1.5">
+                    <Label className="text-[10px] font-black text-slate-500 uppercase">Setor de Destino</Label>
+                    <Input 
+                      value={borrowerSector} 
+                      onChange={e => setBorrowerSector(e.target.value)} 
+                      placeholder="Ex: Rouparia" 
+                      className="h-10 text-sm bg-white border-blue-200" 
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label className="text-[10px] font-black text-slate-500 uppercase">Nome de quem retirou</Label>
+                    <Input 
+                      value={borrowerName} 
+                      onChange={e => setBorrowerName(e.target.value)} 
+                      placeholder="Ex: João" 
+                      className="h-10 text-sm bg-white border-blue-200" 
+                    />
+                  </div>
+                </div>
+              )}
+            </div>
+
           </div>
 
-          <DialogFooter className="border-t pt-4">
-            <Button onClick={confirmMaintenance} className="w-full bg-amber-500 hover:bg-amber-600 text-white font-black h-12 md:h-10 text-xs md:text-sm rounded-xl md:rounded-md shadow-lg shadow-amber-500/20">
-              CONFIRMAR ENVIO
+          <DialogFooter className="border-t pt-4 flex-col sm:flex-row gap-2 sm:gap-0">
+            <Button variant="outline" onClick={() => setMaintenanceItem(null)} className="w-full sm:w-auto h-11 md:h-10 order-2 sm:order-1 font-bold">
+              Cancelar
+            </Button>
+            <Button onClick={confirmMaintenance} className="w-full sm:w-auto bg-amber-500 hover:bg-amber-600 text-white font-black h-11 md:h-10 text-[10px] md:text-xs rounded-lg shadow-lg shadow-amber-500/20 order-1 sm:order-2">
+              CONFIRMAR OPERAÇÃO
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
-              <p className="text-center text-slate-400 text-[9px] md:text-[10px] font-bold uppercase tracking-widest mt-6 md:mt-8 pb-4">
-          IBCC ONCOLOGIA • HOTELARIA
-        </p>
+      
+      <p className="text-center text-slate-400 text-[9px] md:text-[10px] font-bold uppercase tracking-widest mt-6 md:mt-8 pb-4">
+        IBCC ONCOLOGIA • HOTELARIA
+      </p>
     </div>
   )
 }

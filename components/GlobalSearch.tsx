@@ -23,7 +23,15 @@ export function GlobalSearch() {
   const [open, setOpen] = React.useState(false)
   const [query, setQuery] = React.useState('')
   const [results, setResults] = React.useState<{furniture: any[], requests: any[]}>({furniture: [], requests: []})
+  const [isMac, setIsMac] = React.useState(false)
+  const [mounted, setMounted] = React.useState(false)
   const router = useRouter()
+
+  // Detecta o Sistema Operacional e previne erro de hidratação no Next.js
+  React.useEffect(() => {
+    setMounted(true)
+    setIsMac(/(Mac|iPhone|iPod|iPad)/i.test(navigator.userAgent))
+  }, [])
 
   React.useEffect(() => {
     const down = (e: KeyboardEvent) => {
@@ -63,20 +71,23 @@ export function GlobalSearch() {
 
   return (
     <>
+      {/* BOTÃO COM ATALHO DINÂMICO (Mac vs Windows) */}
       <button
         onClick={() => setOpen(true)}
-        // ✅ AJUSTE: w-full no mobile, larguras fixas no tablet/desktop. Padding aumentado pro toque.
-        className="group flex items-center gap-2 px-3 py-2.5 md:py-1.5 text-sm text-slate-400 bg-slate-800 hover:bg-slate-700 rounded-lg md:rounded-md border border-slate-700 transition-all w-full md:w-48 lg:w-64"
+        className="group flex items-center gap-2 px-3 py-2.5 md:py-1.5 text-sm text-slate-400 bg-slate-800 hover:bg-slate-700 rounded-lg md:rounded-md border border-slate-700 transition-all w-full md:w-48 lg:w-64 shadow-sm"
       >
-        <Search className="w-4 h-4 md:w-4 md:h-4 group-hover:text-blue-400 transition-colors" />
+        <Search className="w-4 h-4 md:w-4 md:h-4 group-hover:text-blue-400 transition-colors shrink-0" />
         <span className="truncate">Busca rápida...</span>
-        <kbd className="ml-auto pointer-events-none hidden sm:inline-flex h-5 select-none items-center gap-1 rounded border border-slate-600 bg-slate-900 px-1.5 font-mono text-[10px] font-medium text-slate-500">
-          <span className="text-xs">⌘</span>K
-        </kbd>
+        
+        {/* Renderiza o atalho correto de acordo com o OS do usuário */}
+        {mounted && (
+          <kbd className="ml-auto pointer-events-none hidden sm:inline-flex h-5 select-none items-center gap-1 rounded border border-slate-600 bg-slate-900 px-1.5 font-mono text-[10px] font-medium text-slate-500 shrink-0">
+            <span className="text-xs">{isMac ? '⌘' : 'Ctrl'}</span>K
+          </kbd>
+        )}
       </button>
 
       <Dialog open={open} onOpenChange={setOpen}>
-        {/* ✅ AJUSTE: w-[95vw] para não vazar no celular, rounded-2xl para visual mobile-first */}
         <DialogContent className="overflow-hidden p-0 shadow-2xl border-slate-200 w-[95vw] max-w-lg sm:w-full rounded-2xl md:rounded-xl">
           <DialogHeader className="sr-only">
             <DialogTitle>Busca Global de Ativos</DialogTitle>
@@ -87,7 +98,7 @@ export function GlobalSearch() {
               placeholder="Digite o patrimônio, setor ou nome..." 
               value={query}
               onValueChange={setQuery}
-              className="text-base md:text-sm h-12 md:h-11" // Fonte maior no mobile evita zoom automático do iOS
+              className="text-base md:text-sm h-12 md:h-11" 
             />
             <CommandList className="max-h-[50vh] md:max-h-[400px]">
               {query.length >= 2 && results.furniture.length === 0 && results.requests.length === 0 && (
