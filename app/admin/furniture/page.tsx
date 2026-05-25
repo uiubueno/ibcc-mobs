@@ -92,7 +92,7 @@ export default function FurniturePage() {
 
   useEffect(() => { fetchData() }, [])
 
-  // --- LÓGICA DE BUSCA, FILTRO E PAGINAÇÃO ---
+// --- LÓGICA DE BUSCA, FILTRO E PAGINAÇÃO ---
   const filteredItems = furnitureList.filter(item => {
     const matchesSearch = item.name.toLowerCase().includes(search.toLowerCase()) ||
       (item.patrimony && item.patrimony.toLowerCase().includes(search.toLowerCase())) ||
@@ -101,9 +101,13 @@ export default function FurniturePage() {
       (item.borrower && item.borrower.toLowerCase().includes(search.toLowerCase()));
 
     const matchesView = 
-      filterView === 'TODOS' ? true :
-      filterView === 'ESTOQUE' ? item.quantity > 0 :
-      item.quantity === 0;
+      filterView === 'TODOS' 
+        ? true 
+        : filterView === 'ESTOQUE' 
+          // Para ser estoque, a qtd deve ser > 0 e o status NÃO PODE ser empréstimo ou oficina
+          ? item.quantity > 0 && item.status !== 'EMPRESTADO' && item.status !== 'MANUTENCAO'
+          // Para ser "Em Uso", a qtd é 0 OU o status é de EMPRÉSTIMO
+          : item.quantity === 0 || item.status === 'EMPRESTADO';
 
     return matchesSearch && matchesView;
   })
