@@ -172,3 +172,10 @@ model WarehouseItem {
 
   @@map("warehouse_items")
 }
+
+model StockLimit {
+  id        String   @id @default(cuid())
+  type      String   @unique
+  minLimit  Int      @default(5)
+  updatedAt DateTime @updatedAt
+}
