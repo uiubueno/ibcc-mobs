@@ -13,8 +13,8 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
 
   try {
     const body = await req.json()
-    // Agora recebemos apenas o Setor e o Nome de quem levou a cadeira reserva
-    const { status, maintenanceQuantity, borrowerName, borrowerSector } = body 
+    // 🔥 Capturamos a observation enviada pelo front
+    const { status, maintenanceQuantity, borrowerName, borrowerSector, observation } = body 
 
     if (status !== 'MANUTENCAO') {
       return NextResponse.json({ error: 'Status inválido para esta rota' }, { status: 400 })
@@ -30,13 +30,14 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
 
     const result = await prisma.$transaction(async (tx) => {
       
-      // ----------------------------------------------------------------
       // PARTE 1: ENVIAR O ITEM ORIGINAL PARA MANUTENÇÃO
-      // ----------------------------------------------------------------
       if (currentFurniture.patrimony || maintenanceQuantity === currentFurniture.quantity || !maintenanceQuantity) {
         await tx.furniture.update({
           where: { id },
-          data: { status: 'MANUTENCAO' }
+          data: { 
+            status: 'MANUTENCAO',
+            observation: observation || currentFurniture.observation // Salva a observação
+          }
         })
       } else {
         const quantityToMove = parseInt(maintenanceQuantity, 10)
@@ -56,6 +57,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
             quantity: quantityToMove,
             status: 'MANUTENCAO',
             location: currentFurniture.location,
+            observation: observation // Salva a observação no clone
           }
         })
       }
@@ -65,20 +67,17 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
           furnitureId: id,
           type: 'MANUTENCAO',
           quantity: maintenanceQuantity ? parseInt(maintenanceQuantity, 10) : currentFurniture.quantity,
-          description: `Item enviado para a oficina. Setor de origem: ${currentFurniture.location}`,
+          description: `Enviado para oficina. Setor: ${currentFurniture.location}. Obs: ${observation || 'Nenhuma'}`,
         }
       })
 
-      // ----------------------------------------------------------------
-      // PARTE 2: LÓGICA DO EMPRÉSTIMO RESERVA (SEM CADASTRO PRÉVIO)
-      // ----------------------------------------------------------------
+      // PARTE 2: LÓGICA DO EMPRÉSTIMO RESERVA
       if (borrowerName) {
-        // Cria um item genérico "fantasma" no banco só para controle visual
         const newLoanedItem = await tx.furniture.create({
           data: {
             name: `Reserva Emprestada (${currentFurniture.name})`,
             type: currentFurniture.type,
-            quantity: 0, // Fica com 0 para ir direto para a aba de "Em Uso"
+            quantity: 0, 
             status: 'EMPRESTADO',
             location: borrowerSector || currentFurniture.location,
             borrower: borrowerName
@@ -90,7 +89,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
             furnitureId: newLoanedItem.id,
             type: 'EMPRESTIMO',
             quantity: 1,
-            description: `Item reserva de controle emprestado para o setor ${borrowerSector || currentFurniture.location}. Retirado por: ${borrowerName}`,
+            description: `Controle reserva emprestado para setor ${borrowerSector || currentFurniture.location}. Retirado por: ${borrowerName}`,
           }
         })
       }

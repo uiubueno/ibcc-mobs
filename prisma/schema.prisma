@@ -59,7 +59,8 @@ model Furniture {
   status    FurnitureStatus @default(NOVO)
   location  String
   patrimony String?
-  borrower  String?         
+  borrower  String?  
+  observation String?       
   createdAt DateTime        @default(now())
   updatedAt DateTime        @updatedAt
   

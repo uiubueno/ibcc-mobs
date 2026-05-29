@@ -41,6 +41,7 @@ interface MaintenanceCartItem {
   originSector: string;
   patrimony?: string;
   quantity: number;
+  observation?: string; // 🔥 Campo de observação adicionado
 }
 
 export default function MaintenancePage() {
@@ -55,9 +56,9 @@ export default function MaintenancePage() {
   const [customName, setCustomName] = useState("");
   const [customPatrimony, setCustomPatrimony] = useState("");
   const [customQty, setCustomQty] = useState("1");
+  const [customObservation, setCustomObservation] = useState(""); // 🔥 Estado da observação
   const [searchQuery, setSearchQuery] = useState(""); 
 
-  // Estados: Busca e Paginação do Pátio
   const [patioSearch, setPatioSearch] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 5; 
@@ -126,6 +127,7 @@ export default function MaintenancePage() {
     });
   };
 
+  // 🔥 PDF AGORA COM 5 COLUNAS E CAMPO OBSERVAÇÃO 🔥
   const generatePDF = async () => {
     if (maintenanceItems.length === 0) {
       return toast.error("Não há itens em manutenção para gerar a guia.");
@@ -183,17 +185,16 @@ export default function MaintenancePage() {
 
         const tableRows = maintenanceItems.map((item) => [
           item.name,
-          item.patrimony
-            ? item.patrimony.replace(" [CTRL]", "").replace("CTRL-TEMP", "S/N")
-            : "S/N",
+          item.patrimony ? item.patrimony.replace(" [CTRL]", "").replace("CTRL-TEMP", "S/N") : "S/N",
           item.location || "Não informado",
           item.quantity ? String(item.quantity).padStart(2, "0") : "01",
+          item.observation || "—"
         ]);
 
         autoTable(doc, {
           startY: tableStartY,
           head: [
-            ["Descrição do Mobiliário", "Patrimônio", "Setor de Origem", "Qtd"],
+            ["Descrição do Mobiliário", "Patrimônio", "Setor de Origem", "Qtd", "Observação"],
           ],
           body: tableRows,
           theme: "grid",
@@ -203,12 +204,13 @@ export default function MaintenancePage() {
             fontStyle: "bold",
             halign: "center",
           },
-          styles: { fontSize: 9, cellPadding: 5, halign: "center" },
+          styles: { fontSize: 8, cellPadding: 4, halign: "center" },
           columnStyles: {
-            0: { halign: "left", cellWidth: 70 },
-            1: { halign: "left" },
-            2: { halign: "left" },
-            3: { halign: "center", cellWidth: 20 },
+            0: { halign: "left", cellWidth: 45 },
+            1: { halign: "center", cellWidth: 25 },
+            2: { halign: "center", cellWidth: 35 },
+            3: { halign: "center", cellWidth: 15 },
+            4: { halign: "left" }, 
           },
         });
 
@@ -263,11 +265,13 @@ export default function MaintenancePage() {
       originSector: customOrigin.trim(),
       patrimony: customPatrimony.trim(),
       quantity: qty,
+      observation: customObservation.trim()
     };
     setCart([...cart, newItem]);
     setCustomName("");
     setCustomPatrimony("");
     setCustomQty("1");
+    setCustomObservation("");
     toast.success("Item do setor adicionado!");
   };
 
@@ -282,6 +286,7 @@ export default function MaintenancePage() {
       originSector: item.location || "Sem Local",
       patrimony: item.patrimony,
       quantity: 1,
+      observation: item.observation || ""
     };
     setCart([...cart, newItem]);
     toast.success("Item do estoque adicionado!");
@@ -302,6 +307,7 @@ export default function MaintenancePage() {
                 quantity: item.quantity,
                 location: item.originSector,
                 patrimony: secretPatrimony,
+                observation: item.observation // 🔥 Envia Observação
               }),
             });
             if (createRes.ok) {
@@ -309,14 +315,14 @@ export default function MaintenancePage() {
               await fetch(`/api/furniture/${createdItem.id}`, {
                 method: "PATCH",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ status: "MANUTENCAO" }),
+                body: JSON.stringify({ status: "MANUTENCAO", observation: item.observation }),
               });
             }
           } else {
             await fetch(`/api/furniture/${item.realId}`, {
               method: "PATCH",
               headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ status: "MANUTENCAO" }),
+              body: JSON.stringify({ status: "MANUTENCAO", observation: item.observation }), // 🔥 Envia Observação
             });
           }
         }
@@ -330,6 +336,7 @@ export default function MaintenancePage() {
           setCustomOrigin("");
           setCustomPatrimony("");
           setCustomQty("1");
+          setCustomObservation("");
           fetchData();
           return "Caminhão despachado! 🚚";
         },
@@ -344,7 +351,8 @@ export default function MaintenancePage() {
   ) => {
     const isTemporary = item.patrimony && item.patrimony.includes("[CTRL]");
     const method = isTemporary && newStatus === "USADO" ? "DELETE" : "PATCH";
-    const body = method === "PATCH" ? JSON.stringify({ status: newStatus }) : null;
+    // Na volta, limpa a observação (ou você pode manter, decidi limpar pra cadeira voltar zerada)
+    const body = method === "PATCH" ? JSON.stringify({ status: newStatus, observation: "" }) : null;
 
     toast.promise(
       fetch(`/api/furniture/${item.id}`, {
@@ -454,6 +462,12 @@ export default function MaintenancePage() {
                       ) : (
                         <span className="bg-slate-100 text-slate-600 px-2 py-1 rounded w-fit uppercase">
                           Patrimônio: {item.patrimony || "S/N"}
+                        </span>
+                      )}
+                      {/* 🔥 Mostra a observação no card se tiver */}
+                      {item.observation && (
+                        <span className="bg-orange-50 text-orange-700 px-2 py-1 rounded w-fit uppercase">
+                          Obs: {item.observation}
                         </span>
                       )}
                     </div>
@@ -569,6 +583,16 @@ export default function MaintenancePage() {
                     className="h-12 md:h-14 text-sm md:text-base bg-white shadow-sm w-16 md:w-24 text-center disabled:opacity-50"
                   />
                 </div>
+                {/* 🔥 Novo Campo de Observação no Custom */}
+                <div className="mt-2">
+                  <Input
+                    placeholder="Observação / Defeito (Ex: Rodinha quebrada)"
+                    value={customObservation}
+                    onChange={(e) => setCustomObservation(e.target.value)}
+                    className="h-12 md:h-14 text-sm md:text-base bg-white shadow-sm w-full"
+                  />
+                </div>
+
                 <Button
                   onClick={handleAddCustom}
                   className="w-full h-12 md:h-14 text-xs md:text-base bg-blue-600 hover:bg-blue-700 text-white font-bold shadow-md mt-2 rounded-xl"
@@ -646,26 +670,33 @@ export default function MaintenancePage() {
                   </div>
                 ) : (
                   cart.map((item) => (
-                    <div key={item.id} className="flex justify-between items-center bg-white/5 p-3 md:p-5 rounded-xl md:rounded-2xl border border-white/10">
-                      <div className="min-w-0 pr-2">
-                        <p className="font-black text-white text-sm md:text-base truncate">
-                          {item.name} <span className="text-orange-400 ml-1">(x{item.quantity})</span>
-                        </p>
-                        <p className="text-[9px] md:text-xs text-slate-400 font-bold uppercase mt-1 truncate">
-                          Origem: {item.originSector}
-                        </p>
-                        {item.patrimony && (
-                          <p className="text-[9px] md:text-xs text-slate-500 mt-0.5 truncate">
-                            Pat: {item.patrimony}
+                    <div key={item.id} className="flex flex-col bg-white/5 p-3 md:p-4 rounded-xl md:rounded-2xl border border-white/10">
+                      <div className="flex justify-between items-start mb-2">
+                        <div className="min-w-0 pr-2">
+                          <p className="font-black text-white text-sm md:text-base truncate">
+                            {item.name} <span className="text-orange-400 ml-1">(x{item.quantity})</span>
                           </p>
-                        )}
+                          <p className="text-[9px] md:text-xs text-slate-400 font-bold uppercase mt-1 truncate">
+                            Origem: {item.originSector}
+                          </p>
+                        </div>
+                        <button
+                          onClick={() => setCart(cart.filter((c) => c.id !== item.id))}
+                          className="text-white/30 hover:text-red-400 transition-colors p-2 bg-black/20 rounded-lg shrink-0"
+                        >
+                          <Trash2 className="w-4 h-4 md:w-5 md:h-5" />
+                        </button>
                       </div>
-                      <button
-                        onClick={() => setCart(cart.filter((c) => c.id !== item.id))}
-                        className="text-white/30 hover:text-red-400 transition-colors p-2 md:p-2.5 bg-black/20 rounded-lg shrink-0"
-                      >
-                        <Trash2 className="w-4 h-4 md:w-5 md:h-5" />
-                      </button>
+                      {/* 🔥 Edição Rápida da Observação direto no Carrinho */}
+                      <Input
+                        placeholder="Observação (Ex: Rodízio quebrado)..."
+                        value={item.observation || ""}
+                        onChange={(e) => {
+                          const newCart = cart.map(c => c.id === item.id ? { ...c, observation: e.target.value } : c);
+                          setCart(newCart);
+                        }}
+                        className="h-8 text-xs bg-slate-800 border-slate-700 text-white placeholder:text-slate-500 mt-1"
+                      />
                     </div>
                   ))
                 )}
@@ -692,9 +723,9 @@ export default function MaintenancePage() {
           </div>
         </DialogContent>
       </Dialog>
-              <p className="text-center text-slate-400 text-[9px] md:text-[10px] font-bold uppercase tracking-widest mt-6 md:mt-8 pb-4">
-          IBCC ONCOLOGIA • HOTELARIA
-        </p>
+      <p className="text-center text-slate-400 text-[9px] md:text-[10px] font-bold uppercase tracking-widest mt-6 md:mt-8 pb-4">
+        IBCC ONCOLOGIA • HOTELARIA
+      </p>
     </div>
   );
 }
