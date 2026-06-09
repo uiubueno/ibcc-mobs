@@ -457,7 +457,7 @@ export default function MaintenancePage() {
                       </span>
                       {item.patrimony && item.patrimony.includes("[CTRL]") ? (
                         <Badge className="bg-slate-900 text-white text-[8px] md:text-[9px] w-fit">
-                          SETOR: {item.patrimony.replace(" [CTRL]", "")}
+                          Patrimonio: {item.patrimony.replace(" [CTRL]", "")}
                         </Badge>
                       ) : (
                         <span className="bg-slate-100 text-slate-600 px-2 py-1 rounded w-fit uppercase">
