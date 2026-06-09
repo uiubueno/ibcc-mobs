@@ -35,6 +35,8 @@ export default function AdminRequestsPage() {
   const [selectedRequest, setSelectedRequest] = useState<any>(null);
   const [openTriage, setOpenTriage] = useState(false);
   const [itemStatuses, setItemStatuses] = useState<Record<string, string>>({});
+  // NOVO: Estado para guardar as justificativas individuais
+  const [itemRejectReasons, setItemRejectReasons] = useState<Record<string, string>>({});
 
   const [selectedItemToDeliver, setSelectedItemToDeliver] = useState<any>(null);
   const [openDeliver, setOpenDeliver] = useState(false);
@@ -85,6 +87,7 @@ export default function AdminRequestsPage() {
     });
     
     setItemStatuses(initialStatuses);
+    setItemRejectReasons({}); // Limpa as justificativas antigas
     setOpenTriage(true);
   };
 
@@ -93,12 +96,23 @@ export default function AdminRequestsPage() {
   };
 
   const confirmTriage = async () => {
+    // TRAVA DE SEGURANÇA: Verifica se tem algum item recusado sem justificativa
+    const missingReason = selectedRequest.items.some(
+      (item: any) => itemStatuses[item.id] === "RECUSADO" && !itemRejectReasons[item.id]?.trim()
+    );
+
+    if (missingReason) {
+      toast.error("Preencha a justificativa para todos os itens recusados.");
+      return;
+    }
+
     toast.promise(
       (async () => {
         const res = await fetch(`/api/requests/${selectedRequest.id}/triage`, {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ itemStatuses }),
+          // Envia também as justificativas para a API salvar e mandar no e-mail
+          body: JSON.stringify({ itemStatuses, itemRejectReasons }), 
         });
         if (!res.ok) {
           const err = await res.json();
@@ -499,12 +513,12 @@ export default function AdminRequestsPage() {
 
       {/* --- MODAIS COM RESPONSIVIDADE --- */}
       
-      {/* MODAL RECUSA */}
+      {/* MODAL RECUSA (RECUSAR TUDO) */}
       <Dialog open={openRejectModal} onOpenChange={setOpenRejectModal}>
         <DialogContent className="max-w-lg w-[95vw] border-red-200 rounded-2xl md:rounded-xl p-4 md:p-6">
           <DialogHeader>
             <DialogTitle className="text-lg md:text-xl font-black text-red-600 flex items-center gap-2">
-              <MessageSquareWarning className="w-5 h-5" /> Recusar Solicitação
+              <MessageSquareWarning className="w-5 h-5" /> Recusar Solicitação Inteira
             </DialogTitle>
             <DialogDescription className="font-medium text-slate-600 mt-2 text-xs md:text-sm">
               Informe ao setor <span className="font-bold text-slate-900">{requestToReject?.sector}</span> o motivo.
@@ -515,7 +529,7 @@ export default function AdminRequestsPage() {
               Justificativa Técnica
             </label>
             <Textarea
-              placeholder="Ex: Item fora do padrão..."
+              placeholder="Ex: Pedido fora do padrão..."
               className="min-h-[100px] md:min-h-[120px] resize-none focus-visible:ring-red-500 text-sm"
               value={rejectReason}
               onChange={(e) => setRejectReason(e.target.value)}
@@ -544,10 +558,7 @@ export default function AdminRequestsPage() {
           
           <div className="py-2 md:py-4 space-y-4 max-h-[60vh] overflow-y-auto pr-1">
             {selectedRequest?.items?.map((item: any) => {
-              // Verifica se tem estoque para esse item específico
               const inStock = hasItemInStock(item.type);
-              
-              // Filtra as opções de botão: se não tiver estoque, o botão "EM_SEPARACAO" some.
               const options = inStock 
                 ? ["EM_SEPARACAO", "EM_COMPRA", "RECUSADO"] 
                 : ["EM_COMPRA", "RECUSADO"];
@@ -573,7 +584,6 @@ export default function AdminRequestsPage() {
                     </p>
                   </div>
                   
-                  {/* Grid dinâmico baseado na quantidade de opções (2 ou 3) */}
                   <div className={`grid ${inStock ? 'grid-cols-3' : 'grid-cols-2'} gap-1 bg-white/80 p-1 rounded-lg border border-slate-200 shadow-sm w-full mt-1`}>
                     {options.map((st) => (
                       <button
@@ -585,6 +595,27 @@ export default function AdminRequestsPage() {
                       </button>
                     ))}
                   </div>
+
+                  {/* NOVO: TEXTAREA SELECIONADO RECUSAR */}
+                  {itemStatuses[item.id] === "RECUSADO" && (
+                    <div className="mt-1 animate-in fade-in slide-in-from-top-2 duration-300">
+                      <label className="text-[10px] font-bold text-red-500 uppercase tracking-widest block mb-1.5 ml-1">
+                        Justificativa da Recusa *
+                      </label>
+                      <Textarea
+                        placeholder="Ex: Item não faz parte da padronização..."
+                        className="text-xs min-h-[60px] resize-none focus-visible:ring-red-500 bg-white border-red-200"
+                        value={itemRejectReasons[item.id] || ""}
+                        onChange={(e) =>
+                          setItemRejectReasons((prev) => ({
+                            ...prev,
+                            [item.id]: e.target.value,
+                          }))
+                        }
+                      />
+                    </div>
+                  )}
+
                 </div>
               );
             })}
