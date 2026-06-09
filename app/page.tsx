@@ -6,7 +6,7 @@ import { DashboardCharts } from '@/components/DashboardCharts'
 import { DashboardAlerts } from '@/components/DashboardAlerts'
 import { DateRangeFilter } from '@/components/DateRangeFilter'
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { ClipboardList, ArrowRight, CheckCircle2, Truck, Package } from 'lucide-react'
+import { ClipboardList, ArrowRight, CheckCircle2, Truck, Package, ShoppingCart, XCircle } from 'lucide-react'
 import Link from 'next/link'
 
 export default async function HomePage(props: { 
@@ -42,25 +42,31 @@ export default async function HomePage(props: {
     prisma.stockLimit.findMany()
   ])
 
+  // Contagem alinhada com a Triagem (Conta Pedidos para Pendentes)
   const pendingRequests = allRequests.filter(r => r.status === 'PENDENTE').length
-  const separationRequests = allRequests.filter(r => r.status === 'EM_SEPARACAO').length
-  const deliveredRequests = allRequests.filter(r => r.status === 'ENTREGUE').length
+  
+  // Extrai todos os itens com os seus respectivos setores para análise
+  const allItems = allRequests.flatMap(r => (r.items || []).map((i: any) => ({ ...i, sector: r.sector })))
+  
+  const separationCount = allItems.filter(i => i.status === 'EM_SEPARACAO').length
+  const deliveredCount = allItems.filter(i => i.status === 'ENTREGUE').length
+  const purchaseCount = allItems.filter(i => i.status === 'EM_COMPRA').length
+  const rejectedCount = allItems.filter(i => i.status === 'RECUSADO').length
 
-  const statusCounts = allRequests.reduce((acc: any, req) => {
-    const statusName = req.status.replace('_', ' ')
-    acc[statusName] = (acc[statusName] || 0) + 1
-    return acc
-  }, {})
+  // 🔥 O GRÁFICO PUXA OS VALORES EXATOS DOS CARDS
+  const statusData = [
+    { name: 'PENDENTE', value: pendingRequests },
+    { name: 'EM SEPARAÇÃO', value: separationCount },
+    { name: 'ENTREGUE', value: deliveredCount },
+    { name: 'EM COMPRA', value: purchaseCount },
+    { name: 'RECUSADO', value: rejectedCount }
+  ].filter(item => item.value > 0)
 
-  const statusData = Object.keys(statusCounts).map(name => ({
-    name,
-    value: statusCounts[name]
-  }))
-
-  const sectorCounts = allRequests
-    .filter(req => req.status === 'ENTREGUE') 
-    .reduce((acc: any, req) => {
-      acc[req.sector] = (acc[req.sector] || 0) + 1
+  // RANKING DE SETORES BASEADO NA QUANTIDADE REAL DE ITENS ENTREGUES
+  const sectorCounts = allItems
+    .filter(item => item.status === 'ENTREGUE') 
+    .reduce((acc: any, item) => {
+      acc[item.sector] = (acc[item.sector] || 0) + 1
       return acc
     }, {})
 
@@ -87,8 +93,10 @@ export default async function HomePage(props: {
         </Suspense>
       </header>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4 md:gap-6">
+      {/* GRID COM A NOVA ORDEM VISUAL DOS CARDS */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
         
+        {/* CARD 1: PENDENTES */}
         <Card className="border-l-4 border-l-amber-500 shadow-sm hover:shadow-md transition-shadow">
           <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
             <CardTitle className="text-xs md:text-sm font-medium text-slate-500 uppercase tracking-wider">Pendentes</CardTitle>
@@ -102,29 +110,56 @@ export default async function HomePage(props: {
           </CardContent>
         </Card>
 
-        <Card className="border-l-4 border-l-purple-500 shadow-sm bg-purple-50/30">
+        {/* CARD 2: EM SEPARAÇÃO */}
+        <Card className="border-l-4 border-l-purple-500 shadow-sm bg-purple-50/30 hover:shadow-md transition-shadow">
           <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
             <CardTitle className="text-xs md:text-sm font-medium text-slate-600 uppercase tracking-wider">Em Separação</CardTitle>
             <Truck className="h-4 w-4 md:h-5 md:w-5 text-purple-600" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl md:text-3xl font-bold text-purple-900">{separationRequests}</div>
+            <div className="text-2xl md:text-3xl font-bold text-purple-900">{separationCount}</div>
             <p className="text-[9px] md:text-[10px] text-purple-600/70 mt-2 font-bold uppercase tracking-wider">Aguardando entrega</p>
           </CardContent>
         </Card>
 
-        <Card className="border-none shadow-md shadow-blue-500/10 bg-blue-600 text-white">
+        {/* CARD 3: EM COMPRA */}
+        <Card className="border-l-4 border-l-teal-500 shadow-sm hover:shadow-md transition-shadow bg-teal-50/30">
+          <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
+            <CardTitle className="text-xs md:text-sm font-medium text-slate-600 uppercase tracking-wider">Em Compra</CardTitle>
+            <ShoppingCart className="h-4 w-4 md:h-5 md:w-5 text-teal-600" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl md:text-3xl font-bold text-teal-900">{purchaseCount}</div>
+            <p className="text-[9px] md:text-[10px] text-teal-600/70 mt-2 font-bold uppercase tracking-wider">Aguardando reposição</p>
+          </CardContent>
+        </Card>
+
+        {/* CARD 4: RECUSADOS (Trocado de lugar) */}
+        <Card className="border-l-4 border-l-red-500 shadow-sm hover:shadow-md transition-shadow bg-red-50/30">
+          <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
+            <CardTitle className="text-xs md:text-sm font-medium text-slate-600 uppercase tracking-wider">Recusados</CardTitle>
+            <XCircle className="h-4 w-4 md:h-5 md:w-5 text-red-500" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl md:text-3xl font-bold text-red-700">{rejectedCount}</div>
+            <p className="text-[9px] md:text-[10px] text-red-600/70 mt-2 font-bold uppercase tracking-wider">Itens negados</p>
+          </CardContent>
+        </Card>
+
+        {/* CARD 5: ENTREGUES (Trocado para o centro da segunda linha) */}
+        <Card className="border-none shadow-md shadow-blue-500/10 bg-blue-600 text-white hover:shadow-lg hover:shadow-blue-500/20 transition-shadow">
           <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
             <CardTitle className="text-xs md:text-sm font-medium text-blue-100 uppercase tracking-wider">Entregues</CardTitle>
             <CheckCircle2 className="h-4 w-4 md:h-5 md:w-5 text-white" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl md:text-3xl font-bold">{deliveredRequests}</div>
+            <div className="text-2xl md:text-3xl font-bold">{deliveredCount}</div>
             <p className="text-[9px] md:text-[10px] text-blue-200 mt-2 font-bold uppercase tracking-wider">Pedidos concluídos</p>
           </CardContent>
         </Card>
 
-        <Card className="border-l-4 border-l-slate-400 shadow-sm">
+        {/* CARD 6: ESTOQUE TOTAL */}
+        <Card className="border-l-4 border-l-slate-400 shadow-sm hover:shadow-md transition-shadow">
           <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
             <CardTitle className="text-xs md:text-sm font-medium text-slate-500 uppercase tracking-wider">Estoque Total</CardTitle>
             <Package className="h-4 w-4 md:h-5 md:w-5 text-slate-400" />
@@ -135,23 +170,10 @@ export default async function HomePage(props: {
           </CardContent>
         </Card>
 
-        <Card className="bg-slate-900 text-white shadow-lg sm:col-span-2 lg:col-span-1 xl:col-span-1">
-          <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
-            <CardTitle className="text-xs md:text-sm font-medium text-slate-300 uppercase tracking-wider">Ação Rápida</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <Link href="/solicitar" className="block">
-              <button className="w-full bg-blue-600 hover:bg-blue-700 py-2 md:py-3 rounded-lg text-sm font-bold transition-all shadow-md">
-                Novo Pedido
-              </button>
-            </Link>
-          </CardContent>
-        </Card>
       </div>
 
       <DashboardCharts statusData={statusData} sectorData={sectorData} />
 
-      {/* 🔥 PASSAMOS OS LIMITES DO BANCO DE DADOS PARA O COMPONENTE */}
       <DashboardAlerts stockByType={stockByType} dbLimits={dbLimits} />
 
       <p className="text-center text-slate-400 text-[9px] md:text-[10px] font-bold uppercase tracking-widest mt-6 md:mt-8 pb-4">
