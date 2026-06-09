@@ -66,12 +66,24 @@ export default function AdminRequestsPage() {
     fetchData();
   }, []);
 
+  // Função auxiliar: Verifica se um tipo específico de item existe e tem quantidade no estoque
+  const hasItemInStock = (itemType: string) => {
+    const matchingItems = inventory.filter(
+      (inv) => inv.type === itemType && (inv.status === "NOVO" || inv.status === "USADO") && inv.quantity > 0
+    );
+    return matchingItems.length > 0;
+  };
+
   const openTriageModal = (req: any) => {
     setSelectedRequest(req);
     const initialStatuses: Record<string, string> = {};
+    
     req.items?.forEach((item: any) => {
-      initialStatuses[item.id] = "EM_SEPARACAO";
+      // Se tiver no estoque, a primeira opção é "EM_SEPARACAO". 
+      // Se não tiver, o padrão forçado vira "EM_COMPRA" para não dar erro.
+      initialStatuses[item.id] = hasItemInStock(item.type) ? "EM_SEPARACAO" : "EM_COMPRA";
     });
+    
     setItemStatuses(initialStatuses);
     setOpenTriage(true);
   };
@@ -99,7 +111,7 @@ export default function AdminRequestsPage() {
         success: () => {
           setOpenTriage(false);
           fetchData();
-          return "Triagem finalizada! O coordenador foi notificado.";
+          return "Triagem finalizada! O colaborador foi notificado.";
         },
         error: (err) => `Erro: ${err.message}`,
       },
@@ -526,38 +538,56 @@ export default function AdminRequestsPage() {
           <DialogHeader>
             <DialogTitle className="text-xl md:text-2xl font-black">Análise de Itens</DialogTitle>
             <DialogDescription className="font-medium text-slate-500 text-xs md:text-sm">
-              O coordenador será notificado por e-mail com as decisões abaixo.
+              O colaborador será notificado por e-mail com as decisões abaixo.
             </DialogDescription>
           </DialogHeader>
           
           <div className="py-2 md:py-4 space-y-4 max-h-[60vh] overflow-y-auto pr-1">
-            {selectedRequest?.items?.map((item: any) => (
-              <div
-                key={item.id}
-                className={`p-3 md:p-5 rounded-xl border-2 flex flex-col gap-3 transition-colors ${itemStatuses[item.id] === "EM_SEPARACAO" ? "bg-green-50 border-green-200" : itemStatuses[item.id] === "EM_COMPRA" ? "bg-amber-50 border-amber-200" : "bg-red-50 border-red-200"}`}
-              >
-                <div className="w-full">
-                  <p className="font-black text-slate-900 leading-tight text-base md:text-lg">
-                    {item.quantity}x {item.type}
-                  </p>
-                  <p className="text-xs text-slate-500 italic mt-1 line-clamp-3">
-                    Motivo: {item.reason}
-                  </p>
+            {selectedRequest?.items?.map((item: any) => {
+              // Verifica se tem estoque para esse item específico
+              const inStock = hasItemInStock(item.type);
+              
+              // Filtra as opções de botão: se não tiver estoque, o botão "EM_SEPARACAO" some.
+              const options = inStock 
+                ? ["EM_SEPARACAO", "EM_COMPRA", "RECUSADO"] 
+                : ["EM_COMPRA", "RECUSADO"];
+
+              return (
+                <div
+                  key={item.id}
+                  className={`p-3 md:p-5 rounded-xl border-2 flex flex-col gap-3 transition-colors ${itemStatuses[item.id] === "EM_SEPARACAO" ? "bg-green-50 border-green-200" : itemStatuses[item.id] === "EM_COMPRA" ? "bg-amber-50 border-amber-200" : "bg-red-50 border-red-200"}`}
+                >
+                  <div className="w-full">
+                    <div className="flex items-start justify-between">
+                      <p className="font-black text-slate-900 leading-tight text-base md:text-lg">
+                        {item.quantity}x {item.type}
+                      </p>
+                      {!inStock && (
+                        <Badge className="bg-red-100 text-red-600 border-red-200 text-[9px] uppercase font-bold shrink-0">
+                          Estoque Zerado
+                        </Badge>
+                      )}
+                    </div>
+                    <p className="text-xs text-slate-500 italic mt-1 line-clamp-3">
+                      Motivo: {item.reason}
+                    </p>
+                  </div>
+                  
+                  {/* Grid dinâmico baseado na quantidade de opções (2 ou 3) */}
+                  <div className={`grid ${inStock ? 'grid-cols-3' : 'grid-cols-2'} gap-1 bg-white/80 p-1 rounded-lg border border-slate-200 shadow-sm w-full mt-1`}>
+                    {options.map((st) => (
+                      <button
+                        key={st}
+                        onClick={() => handleUpdateItemStatus(item.id, st)}
+                        className={`py-2 px-1 rounded-md text-[9px] md:text-[10px] font-black transition-all text-center flex flex-col items-center justify-center ${itemStatuses[item.id] === st ? "bg-slate-900 text-white shadow-md" : "text-slate-500 hover:bg-slate-100 hover:text-slate-800"}`}
+                      >
+                        {st === "EM_SEPARACAO" ? "ESTOQUE" : st === "EM_COMPRA" ? "COMPRAR" : "RECUSAR"}
+                      </button>
+                    ))}
+                  </div>
                 </div>
-                
-                <div className="grid grid-cols-3 gap-1 bg-white/80 p-1 rounded-lg border border-slate-200 shadow-sm w-full mt-1">
-                  {["EM_SEPARACAO", "EM_COMPRA", "RECUSADO"].map((st) => (
-                    <button
-                      key={st}
-                      onClick={() => handleUpdateItemStatus(item.id, st)}
-                      className={`py-2 px-1 rounded-md text-[9px] md:text-[10px] font-black transition-all text-center flex flex-col items-center justify-center ${itemStatuses[item.id] === st ? "bg-slate-900 text-white shadow-md" : "text-slate-500 hover:bg-slate-100 hover:text-slate-800"}`}
-                    >
-                      {st === "EM_SEPARACAO" ? "ESTOQUE" : st === "EM_COMPRA" ? "COMPRAR" : "RECUSAR"}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
           
           <DialogFooter className="border-t pt-4 flex-col sm:flex-row gap-2 sm:gap-0 mt-2">
