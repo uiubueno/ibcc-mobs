@@ -5,72 +5,86 @@ import { prisma } from '@/lib/prisma'
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const session = await auth()
   const resolvedParams = await params
-  const id = resolvedParams.id
+  const id = resolvedParams.id // ID do item original no estoque central
 
   if (!session || (session.user as any)?.role !== 'ADMIN') {
     return NextResponse.json({ error: 'Não autorizado' }, { status: 401 })
   }
 
   try {
-    const { borrowerName, borrowerSector } = await req.json()
+    const body = await req.json()
+    const { borrowerName, borrowerSector, quantity } = body
 
-    const itemOrigem = await prisma.furniture.findUnique({ where: { id } })
-    
-    if (!itemOrigem || itemOrigem.quantity <= 0) {
-      return NextResponse.json({ error: 'Item indisponível no estoque' }, { status: 400 })
+    // 1. Validação da quantidade recebida do formulário
+    const loanQuantity = Number(quantity)
+    if (isNaN(loanQuantity) || loanQuantity <= 0) {
+      return NextResponse.json({ error: 'Quantidade inválida para empréstimo.' }, { status: 400 })
     }
 
-    const result = await prisma.$transaction(async (tx) => {
-      let loanedItem;
+    // 2. Busca o item original no estoque para conferir disponibilidade
+    const stockItem = await prisma.furniture.findUnique({
+      where: { id }
+    })
 
-      // 🔥 REGRA NOVA: Se for um item único (como móveis com patrimônio), apenas ATUALIZA o mesmo item.
-      if (itemOrigem.quantity === 1) {
-        loanedItem = await tx.furniture.update({
-          where: { id },
-          data: {
-            name: `Empréstimo: ${itemOrigem.name}`,
-            status: 'EMPRESTADO',
-            location: borrowerSector,
-            borrower: borrowerName
-          }
-        })
-      } 
-      // Se for um Lote (ex: quantidade 10), aí sim ele divide o lote e cria um item separado
-      else {
-        await tx.furniture.update({
-          where: { id },
-          data: { quantity: itemOrigem.quantity - 1 }
-        })
+    if (!stockItem) {
+      return NextResponse.json({ error: 'Item não encontrado no estoque.' }, { status: 404 })
+    }
 
-        loanedItem = await tx.furniture.create({
-          data: {
-            name: `Empréstimo: ${itemOrigem.name}`,
-            type: itemOrigem.type,
-            quantity: 1,
-            status: 'EMPRESTADO',
-            location: borrowerSector,
-            borrower: borrowerName,
-            patrimony: itemOrigem.patrimony
-          }
-        })
-      }
+    // Trava de segurança: impede empréstimo acima do saldo disponível
+    if (stockItem.quantity < loanQuantity) {
+      return NextResponse.json({ 
+        error: `Estoque insuficiente para ${stockItem.name}. Disponível: ${stockItem.quantity}, Solicitado: ${loanQuantity}` 
+      }, { status: 400 })
+    }
 
-      // Registra o movimento no histórico
-      await tx.movement.create({
+    const isBulk = !stockItem.patrimony || stockItem.patrimony.trim() === ""
+
+    if (!isBulk) {
+      // Item único com patrimônio
+      await prisma.furniture.update({
+        where: { id },
         data: {
-          furnitureId: loanedItem.id,
-          type: 'EMPRESTIMO',
-          quantity: 1,
-          description: `Item emprestado para o setor: ${borrowerSector}. Retirado por: ${borrowerName}`,
+          name: `Empréstimo: ${stockItem.name}`,
+          status: 'EMPRESTADO',
+          location: borrowerSector,
+          borrower: borrowerName,
+        }
+      })
+    } else {
+      // Item em lote sem patrimônio: deduz do principal e gera registro do empréstimo com a quantidade real
+      await prisma.furniture.update({
+        where: { id },
+        data: {
+          quantity: { decrement: loanQuantity }
         }
       })
 
-      return loanedItem
+      await prisma.furniture.create({
+        data: {
+          name: `Empréstimo: ${stockItem.name}`,
+          type: stockItem.type,
+          status: 'EMPRESTADO',
+          quantity: loanQuantity, // Salva a quantidade exata informada
+          location: borrowerSector,
+          borrower: borrowerName,
+          patrimony: null
+        }
+      })
+    }
+
+    // Registra o log histórico da movimentação de saída
+    await prisma.movement.create({
+      data: {
+        furnitureId: id,
+        type: 'SAIDA',
+        quantity: loanQuantity,
+        description: `Material cedido para o setor ${borrowerSector}. Responsável pela retirada: ${borrowerName}`,
+      }
     })
 
-    return NextResponse.json({ success: true, item: result })
+    return NextResponse.json({ success: true })
   } catch (error) {
-    console.error("Erro ao registrar empréstimo:", error)
-    return NextResponse.json({ error: 'Erro ao registrar empréstimo' }, { status: 500 })
+    console.error("Erro ao processar empréstimo no servidor:", error)
+    return NextResponse.json({ error: 'Erro interno ao processar empréstimo.' }, { status: 500 })
   }
 }

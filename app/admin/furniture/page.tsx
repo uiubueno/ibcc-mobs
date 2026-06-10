@@ -22,7 +22,8 @@ import {
   Archive,
   MonitorPlay,
   CornerDownLeft,
-  RefreshCcw 
+  RefreshCcw,
+  Lock
 } from 'lucide-react'
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -172,6 +173,18 @@ export default function FurniturePage() {
     }
   }
 
+  // 🔥 LÓGICA DO PATRIMÔNIO: Se o usuário preencher o patrimônio, a quantidade é forçada para 1 e o campo bloqueado
+  const handlePatrimonyChange = (val: string, index: number) => {
+    const newPats = [...bulkPatrimonies];
+    newPats[index] = val;
+    setBulkPatrimonies(newPats);
+    
+    // Trava para "Lote" desativado: se for um único item com patrimônio, fixa a quantidade em 1.
+    if (!isBulk && val.trim() !== '') {
+      setQuantity('1');
+    }
+  }
+
   const confirmMaintenance = async () => {
     if (!maintenanceItem) return
 
@@ -211,7 +224,7 @@ export default function FurniturePage() {
       {
         loading: 'Cadastrando...',
         success: () => {
-          setName(''); setType(''); setQuantity('1'); setLocation(''); fetchData()
+          setName(''); setType(''); setQuantity('1'); setLocation(''); setBulkPatrimonies(['']); fetchData()
           return 'Cadastro realizado! 🚀'
         },
         error: 'Erro ao salvar.'
@@ -237,6 +250,9 @@ export default function FurniturePage() {
     )
   }
 
+  // Verifica se o campo de Quantidade deve estar desabilitado no modo "Sem Lote"
+  const isQuantityDisabled = !isBulk && bulkPatrimonies[0].trim() !== '';
+
   return (
     <div className="p-4 md:p-8 max-w-7xl mx-auto space-y-6 md:space-y-8 animate-in fade-in duration-700">
       
@@ -260,7 +276,7 @@ export default function FurniturePage() {
                 </CardTitle>
                 <div className="flex items-center space-x-2 bg-white px-2 py-1.5 rounded-lg border border-slate-200 shadow-sm">
                   <Label htmlFor="bulk-mode" className="text-[9px] md:text-[10px] font-black uppercase text-slate-400">Lote</Label>
-                  <Switch id="bulk-mode" checked={isBulk} onCheckedChange={(val) => { setIsBulk(val); if (val) handleQuantityChange(quantity); }} />
+                  <Switch id="bulk-mode" checked={isBulk} onCheckedChange={(val) => { setIsBulk(val); if (val) handleQuantityChange(quantity); else setBulkPatrimonies([bulkPatrimonies[0] || '']) }} />
                 </div>
               </div>
             </CardHeader>
@@ -308,9 +324,21 @@ export default function FurniturePage() {
                       </SelectContent>
                     </Select>
                   </div>
-                  <div className="space-y-1.5">
-                    <Label className="text-[10px] md:text-xs font-black text-slate-500 uppercase tracking-widest">Qtd</Label>
-                    <Input type="number" min="1" required value={quantity} onChange={e => handleQuantityChange(e.target.value)} className="h-10 md:h-9 text-sm" />
+                  <div className="space-y-1.5 relative">
+                    <div className="flex items-center justify-between">
+                      <Label className="text-[10px] md:text-xs font-black text-slate-500 uppercase tracking-widest">Qtd</Label>
+                      {isQuantityDisabled && <Lock className="w-3 h-3 text-slate-400" />}
+                    </div>
+                    {/* Input com trava inteligente */}
+                    <Input 
+                      type="number" 
+                      min="1" 
+                      required 
+                      value={quantity} 
+                      onChange={e => handleQuantityChange(e.target.value)} 
+                      className={`h-10 md:h-9 text-sm ${isQuantityDisabled ? 'bg-slate-100 text-slate-400 border-slate-200 cursor-not-allowed' : ''}`}
+                      disabled={isQuantityDisabled}
+                    />
                   </div>
                 </div>
 
@@ -329,12 +357,19 @@ export default function FurniturePage() {
                         key={idx} 
                         required={isBulk} 
                         value={pat} 
-                        onChange={(e) => { const n = [...bulkPatrimonies]; n[idx] = e.target.value; setBulkPatrimonies(n) }} 
+                        // 🔥 Substituído pela função que trava a quantidade
+                        onChange={(e) => handlePatrimonyChange(e.target.value, idx)} 
                         placeholder="Patrimônio (Opcional)" 
-                        className="h-10 md:h-8 text-xs font-mono bg-slate-50" 
+                        className="h-10 md:h-8 text-xs font-mono bg-slate-50 focus-visible:ring-blue-500" 
                       />
                     ))}
                   </div>
+                  {/* Mensagem visual da trava para o usuário entender */}
+                  {isQuantityDisabled && (
+                    <p className="text-[9px] md:text-[10px] text-amber-600 font-bold mt-1.5 flex items-center gap-1 bg-amber-50 p-1.5 rounded border border-amber-100">
+                      <Lock className="w-3 h-3" /> Itens com patrimônio são peças únicas. QTD travada.
+                    </p>
+                  )}
                 </div>
 
                 <Button type="submit" className="w-full bg-blue-600 hover:bg-blue-700 font-bold uppercase text-xs md:text-sm h-12 md:h-10 mt-2">

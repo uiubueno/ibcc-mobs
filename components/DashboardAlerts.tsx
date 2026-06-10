@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label" // <--- O IMPORT QUE FALTAVA AQUI 🔥
+import { Label } from "@/components/ui/label"
 import {
   Dialog,
   DialogContent,
@@ -15,13 +15,14 @@ import {
   DialogDescription,
   DialogFooter
 } from "@/components/ui/dialog"
-import { AlertTriangle, Settings, CheckCircle2, Save } from 'lucide-react'
+import { AlertTriangle, Settings, CheckCircle2, Save, Search } from 'lucide-react'
 import { toast } from 'sonner'
 
 export function DashboardAlerts({ stockByType, dbLimits }: { stockByType: any[], dbLimits: any[] }) {
   const router = useRouter()
   const [isConfigOpen, setIsConfigOpen] = useState(false)
   const [limitsConfig, setLimitsConfig] = useState<Record<string, number>>({})
+  const [searchTerm, setSearchTerm] = useState('')
 
   // Mescla os limites do banco de dados com os tipos de móveis que existem
   useEffect(() => {
@@ -33,6 +34,13 @@ export function DashboardAlerts({ stockByType, dbLimits }: { stockByType: any[],
     })
     setLimitsConfig(initialConfig)
   }, [stockByType, dbLimits])
+
+  // Limpa o campo de busca toda vez que o modal for fechado
+  useEffect(() => {
+    if (!isConfigOpen) {
+      setSearchTerm('')
+    }
+  }, [isConfigOpen])
 
   const saveConfiguration = async () => {
     const payload = Object.keys(limitsConfig).map(type => ({
@@ -73,6 +81,11 @@ export function DashboardAlerts({ stockByType, dbLimits }: { stockByType: any[],
     })
     .sort((a, b) => (a._sum.quantity || 0) - (b._sum.quantity || 0))
 
+  // Filtra os itens do modal de acordo com a busca
+  const filteredStockByType = stockByType.filter(item => 
+    item.type.toLowerCase().includes(searchTerm.toLowerCase())
+  )
+
   return (
     <>
       <Card className="border-red-100 shadow-sm overflow-hidden relative">
@@ -91,7 +104,7 @@ export function DashboardAlerts({ stockByType, dbLimits }: { stockByType: any[],
           </button>
         </CardHeader>
         <CardContent className="p-0">
-          <div className="divide-y divide-slate-100">
+          <div className="divide-y divide-slate-100 max-h-[400px] overflow-y-auto">
             {lowStockItems.length > 0 ? (
               lowStockItems.map((item, idx) => {
                 const limit = limitsConfig[item.type] !== undefined ? limitsConfig[item.type] : 5
@@ -124,17 +137,29 @@ export function DashboardAlerts({ stockByType, dbLimits }: { stockByType: any[],
 
       <Dialog open={isConfigOpen} onOpenChange={setIsConfigOpen}>
         <DialogContent className="max-w-md w-[95vw] rounded-2xl md:rounded-xl max-h-[85vh] flex flex-col p-0 overflow-hidden">
-          <DialogHeader className="p-4 md:p-6 pb-2 border-b">
+          
+          {/* HEADER FIXO COM BARRA DE BUSCA */}
+          <DialogHeader className="p-4 md:p-6 pb-4 border-b bg-white shrink-0">
             <DialogTitle className="flex items-center gap-2 text-slate-800 font-black">
               <Settings className="w-5 h-5 text-blue-500" /> Parâmetros de Alerta
             </DialogTitle>
-            <DialogDescription className="text-xs md:text-sm">
+            <DialogDescription className="text-xs md:text-sm mt-1">
               Defina a quantidade mínima aceitável no estoque para cada tipo de mobiliário.
             </DialogDescription>
+            <div className="mt-4 relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+              <Input 
+                placeholder="Buscar mobiliário..." 
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="pl-9 bg-slate-50 border-slate-200 focus-visible:ring-blue-500"
+              />
+            </div>
           </DialogHeader>
           
+          {/* CORPO DO MODAL COM ROLAGEM */}
           <div className="flex-1 overflow-y-auto p-4 md:p-6 space-y-3 bg-slate-50/50">
-            {stockByType.map((item, idx) => (
+            {filteredStockByType.map((item, idx) => (
               <div key={idx} className="flex items-center justify-between bg-white p-3 rounded-xl border border-slate-200 shadow-sm">
                 <Label className="font-bold text-sm text-slate-700 truncate pr-4">
                   {item.type}
@@ -151,12 +176,24 @@ export function DashboardAlerts({ stockByType, dbLimits }: { stockByType: any[],
                 </div>
               </div>
             ))}
+            
+            {/* MENSAGEM SE A BUSCA NÃO ENCONTRAR NADA */}
+            {filteredStockByType.length === 0 && searchTerm !== '' && (
+              <p className="text-center text-slate-500 text-sm py-4">
+                Nenhum mobiliário encontrado com "{searchTerm}".
+              </p>
+            )}
+
+            {/* MENSAGEM SE O ESTOQUE ESTIVER VAZIO */}
             {stockByType.length === 0 && (
-              <p className="text-center text-slate-400 italic text-sm">Nenhum item cadastrado no estoque ainda.</p>
+              <p className="text-center text-slate-400 italic text-sm py-4">
+                Nenhum item cadastrado no estoque ainda.
+              </p>
             )}
           </div>
 
-          <DialogFooter className="p-4 md:p-6 border-t bg-white flex-col sm:flex-row gap-2 sm:gap-0">
+          {/* RODAPÉ FIXO */}
+          <DialogFooter className="p-4 md:p-6 border-t bg-white flex-col sm:flex-row gap-2 sm:gap-0 shrink-0">
             <Button variant="outline" onClick={() => setIsConfigOpen(false)} className="w-full sm:w-auto font-bold">Cancelar</Button>
             <Button onClick={saveConfiguration} className="w-full sm:w-auto bg-blue-600 hover:bg-blue-700 font-bold gap-2">
               <Save className="w-4 h-4" /> SALVAR LIMITES
