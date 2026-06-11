@@ -130,7 +130,7 @@ export default function EnxovalPage() {
   const handleTransfer = async () => {
     const qty = parseInt(transferQty);
     if (isNaN(qty) || qty <= 0) return toast.error("Quantidade inválida.");
-    if (qty > estoquePulmao) return toast.error("Saldo insuficiente no pulmão!");
+    if (qty > estoquePulmao) return toast.error("Saldo insuficiente no estoque!");
     if (!selectedLocation) return toast.error("Selecione a unidade de destino.");
 
     toast.promise(
@@ -491,7 +491,7 @@ export default function EnxovalPage() {
           <div className="p-4 md:p-8 space-y-4 md:space-y-6">
             <div className="grid grid-cols-2 gap-3 md:gap-4">
               <div className="space-y-1.5 md:space-y-2">
-                <Label className="font-bold text-slate-700 uppercase text-[10px] md:text-xs">Pulmão</Label>
+                <Label className="font-bold text-slate-700 uppercase text-[10px] md:text-xs">Estoque</Label>
                 <Input type="number" value={newPulmao} onChange={(e) => setNewPulmao(e.target.value)} className="h-12 md:h-14 text-lg md:text-xl font-bold bg-white" />
               </div>
               <div className="space-y-1.5 md:space-y-2">
