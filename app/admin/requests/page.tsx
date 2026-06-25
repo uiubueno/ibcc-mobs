@@ -242,6 +242,10 @@ export default function AdminRequestsPage() {
           <Badge className="bg-blue-600 text-white py-1.5 md:py-2 px-3 md:px-4 rounded-lg font-bold shadow-md text-xs md:text-sm flex-1 md:flex-none justify-center">
             {separationItems.length} SEPARAR
           </Badge>
+          {/* 🔥 NOVO SELO DE COMPRAS AQUI 🔥 */}
+          <Badge className="bg-purple-600 text-white py-1.5 md:py-2 px-3 md:px-4 rounded-lg font-bold shadow-md text-xs md:text-sm flex-1 md:flex-none justify-center">
+            {purchaseItems.length} EM COMPRAS
+          </Badge>
         </div>
       </header>
 

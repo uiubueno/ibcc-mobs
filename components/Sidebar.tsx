@@ -9,7 +9,8 @@ import { GlobalSearch } from './GlobalSearch'
 import { 
   Home, PlusCircle, Package, Wrench, LayoutDashboard, LogOut,
   Users, ClipboardList, Bed, Warehouse, Camera, ChevronDown,
-  FileText, Menu, X, RefreshCcw, ChevronLeft, ChevronRight
+  FileText, Menu, X, RefreshCcw, ChevronLeft, ChevronRight,
+  BarChart3 // Ícone novo para SLA
 } from 'lucide-react'
 
 export function Navbar({ userName, userRole }: { userName?: string | null, userRole?: string | null }) {
@@ -81,7 +82,7 @@ export function Navbar({ userName, userRole }: { userName?: string | null, userR
       </div>
 
       {isMobileOpen && (
-        <div className="xl:hidden fixed inset-0 top-[65px] bg-[#0f172a] z-40 overflow-y-auto p-4 flex flex-col gap-2">
+        <div className="xl:hidden fixed inset-0 top-[65px] bg-[#0f172a] z-40 overflow-y-auto p-4 flex flex-col gap-2 pb-24">
           {userRole === 'ADMIN' && <NavLink href="/" icon={Home}>Início</NavLink>}
           <NavLink href="/solicitar" icon={PlusCircle}>Solicitar</NavLink>
           <NavLink href="/meus-pedidos" icon={ClipboardList}>Acompanhamento</NavLink>
@@ -92,12 +93,15 @@ export function Navbar({ userName, userRole }: { userName?: string | null, userR
               <NavLink href="/admin/furniture" icon={Package}>Estoque</NavLink>
               <NavLink href="/admin/enxoval" icon={Bed}>Enxoval</NavLink>
               <NavLink href="/admin/inventario" icon={Camera}>Câmera (Lançar)</NavLink>
+              <NavLink href="/admin/inventario/dashboard" icon={FileText}>Painel Entreposto</NavLink>
               <NavLink href="/admin/maintenance" icon={Wrench}>Oficina (Reparos)</NavLink>
+              <NavLink href="/admin/emprestimos" icon={RefreshCcw}>Emprestados</NavLink>
               <NavLink href="/admin/requests" icon={LayoutDashboard}>Painel de Triagem</NavLink>
+              <NavLink href="/admin/analytics" icon={BarChart3}>SLA e Desempenho</NavLink>
               <NavLink href="/admin/usuarios" icon={Users}>Usuários</NavLink>
             </>
           )}
-          <button onClick={() => signOut({ callbackUrl: '/login' })} className="mt-auto flex items-center gap-3 p-3 bg-red-500/10 text-red-400 rounded-xl font-bold">
+          <button onClick={() => signOut({ callbackUrl: '/login' })} className="mt-4 flex items-center justify-center gap-3 p-3 bg-red-500/10 text-red-400 rounded-xl font-bold border border-red-500/20">
             <LogOut className="w-5 h-5" /> Sair do Sistema
           </button>
         </div>
@@ -190,6 +194,9 @@ export function Navbar({ userName, userRole }: { userName?: string | null, userR
                   <div className="pl-11 pr-2 py-2 flex flex-col gap-1">
                     <Link href="/admin/requests" className="text-xs font-semibold text-slate-400 hover:text-white py-2">Triagem Pedidos</Link>
                     <Link href="/meus-pedidos" className="text-xs font-semibold text-slate-400 hover:text-white py-2">Meus Pedidos</Link>
+                    <Link href="/admin/analytics" className="text-xs font-semibold text-purple-400 hover:text-purple-300 py-2 flex items-center gap-2">
+                      <BarChart3 className="w-3.5 h-3.5" /> SLA & Desempenho
+                    </Link>
                   </div>
                 )}
               </div>
