@@ -35,11 +35,9 @@ export default function MyRequestsPage() {
   const [requests, setRequests] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   
-  // Estados do Modal de Rastreamento
   const [selectedRequest, setSelectedRequest] = useState<any>(null)
   const [isTrackingOpen, setIsTrackingOpen] = useState(false)
 
-  // Estados de Busca e Paginação
   const [search, setSearch] = useState('')
   const [currentPage, setCurrentPage] = useState(1)
   const itemsPerPage = 5
@@ -116,7 +114,16 @@ export default function MyRequestsPage() {
     if (!req) return []
     const isCompra = req.items?.some((i: any) => i.status === 'EM_COMPRA')
     
-    const steps = [
+    // DEFINIÇÃO DO TIPO PARA EVITAR ERRO DE TIPAGEM NO DEPLOY
+    const steps: {
+      title: string;
+      description: string;
+      date: any;
+      completed: boolean;
+      current: boolean;
+      isError?: boolean;
+      icon: any;
+    }[] = [
       {
         title: "Pedido Recebido",
         description: "A solicitação chegou para a equipe de Hotelaria.",
@@ -143,7 +150,7 @@ export default function MyRequestsPage() {
     const isTriagemDone = req.status !== 'PENDENTE'
     steps.push({
       title: isTriagemDone ? "Análise Concluída" : "Em Análise",
-      description: isTriagemDone ? "Pedido aprovado e encaminhado." : "A Hotelaria está avaliando sua solicitação.",
+      description: isTriagemDone ? "Pedido aprovado e encaminhado." : "A coordenação está avaliando sua solicitação.",
       date: isTriagemDone ? req.updatedAt : null,
       completed: isTriagemDone,
       current: req.status === 'PENDENTE',
@@ -201,7 +208,6 @@ export default function MyRequestsPage() {
   return (
     <div className="min-h-screen bg-[#f8fafc] pb-12 animate-in fade-in duration-700">
       
-      {/* HEADER RESPONSIVO */}
       <div className="bg-slate-900 pt-8 pb-20 md:pt-12 md:pb-24 px-4 md:px-6">
         <div className="max-w-3xl mx-auto space-y-4 md:space-y-6">
           <div className="space-y-1">
@@ -224,7 +230,6 @@ export default function MyRequestsPage() {
         </div>
       </div>
 
-      {/* LISTA DE PEDIDOS */}
       <div className="max-w-3xl mx-auto px-4 md:px-6 -mt-8 md:-mt-10 space-y-4 md:space-y-6">
         {loading ? (
           [1, 2].map(i => <div key={i} className="h-40 md:h-48 bg-white rounded-2xl md:rounded-3xl animate-pulse shadow-sm" />)
@@ -334,11 +339,9 @@ export default function MyRequestsPage() {
         IBCC ONCOLOGIA • HOTELARIA
       </p>
 
-      {/* --- MODAL LADO A LADO (SPLIT VIEW NO DESKTOP) --- */}
       <Dialog open={isTrackingOpen} onOpenChange={setIsTrackingOpen}>
         <DialogContent className="w-[95vw] sm:max-w-[1000px] md:h-[650px] rounded-3xl p-0 overflow-hidden bg-slate-50 shadow-2xl flex flex-col md:flex-row">
           
-          {/* COLUNA ESQUERDA: Resumo do Pedido (35% da largura) */}
           <div className="bg-slate-900 p-6 md:p-10 text-white md:w-[35%] flex flex-col max-h-[40vh] md:max-h-full overflow-y-auto shrink-0">
             <DialogHeader>
               <DialogTitle className="text-2xl md:text-3xl font-black text-white text-left tracking-tight">Detalhes do Envio</DialogTitle>
@@ -351,7 +354,6 @@ export default function MyRequestsPage() {
                 <div>
                   <p className="text-xs text-blue-400 font-bold uppercase tracking-widest">Pedido #{selectedRequest.id.slice(-5).toUpperCase()}</p>
                   
-                  {/* INFORMAÇÃO DO SOLICITANTE */}
                   <p className="text-sm font-medium mt-4 text-slate-400 flex items-center gap-1.5 mb-1">
                     <User className="w-4 h-4" /> Solicitante:
                   </p>
@@ -359,7 +361,6 @@ export default function MyRequestsPage() {
                     {selectedRequest.user?.name || 'Usuário IBCC'}
                   </span>
 
-                  {/* DESTINO */}
                   <p className="text-sm font-medium text-slate-400">Destino:<br/>
                     <span className="text-white font-black text-xl md:text-2xl tracking-tight leading-none mt-1 block">
                       {selectedRequest.sector}
@@ -382,10 +383,8 @@ export default function MyRequestsPage() {
             )}
           </div>
 
-          {/* COLUNA DIREITA: Timeline (65% da largura) */}
           <div className="md:w-[65%] flex flex-col h-full bg-slate-50">
             <div className="p-6 md:p-12 flex-1 overflow-y-auto custom-scrollbar">
-              {/* LINHA CONECTORA CENTRALIZADA (Ajustada com -translate-x-px e left-7) */}
               <div className="space-y-8 relative before:absolute before:inset-0 before:left-6 md:before:left-7 before:-translate-x-px before:h-full before:w-0.5 before:bg-gradient-to-b before:from-transparent before:via-slate-200 before:to-transparent">
                 {generateTimeline(selectedRequest).map((step, idx, array) => {
                   const Icon = step.icon
@@ -405,18 +404,15 @@ export default function MyRequestsPage() {
 
                   return (
                     <div key={idx} className="relative flex items-start gap-4 md:gap-6">
-                      {/* LINHA CONECTORA MANUAL AJUSTADA PARA O CENTRO DO ÍCONE */}
                       {idx !== array.length - 1 && (
                         <div className={`absolute left-6 md:left-7 top-12 md:top-14 bottom-[-32px] w-0.5 -translate-x-px z-0 ${step.completed ? 'bg-green-500' : 'bg-slate-200'}`} />
                       )}
                       
-                      {/* ÍCONES MAIORES */}
                       <div className={`relative z-10 flex items-center justify-center w-12 h-12 md:w-14 md:h-14 rounded-full ring-2 shrink-0 shadow-sm ${ringColor}`}>
                         <Icon className="w-5 h-5 md:w-6 md:h-6" />
                       </div>
                       
                       <div className="flex flex-col min-w-0 pb-1 pt-1 md:pt-2">
-                        {/* TÍTULOS E DESCRIÇÕES MAIORES */}
                         <h4 className={`text-base md:text-xl font-black ${titleColor}`}>{step.title}</h4>
                         <p className={`text-sm md:text-base mt-1.5 leading-relaxed font-medium ${textColor}`}>
                           {step.description}
@@ -443,7 +439,6 @@ export default function MyRequestsPage() {
               </Button>
             </div>
           </div>
-
         </DialogContent>
       </Dialog>
     </div>
