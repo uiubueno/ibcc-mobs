@@ -62,4 +62,4 @@ export async function GET() { // 🔥 O 'req: Request' foi removido daqui!
     console.error("Erro ao gerar analytics:", error)
     return NextResponse.json({ error: 'Erro interno' }, { status: 500 })
   }
-}g
+}
