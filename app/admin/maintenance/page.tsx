@@ -612,7 +612,7 @@ export default function MaintenancePage() {
                 <div className="relative">
                   <Search className="absolute left-3 md:left-4 top-3.5 md:top-4 h-5 w-5 md:h-6 md:w-6 text-slate-400" />
                   <Input
-                    placeholder="Pesquise no almoxarifado..."
+                    placeholder="Pesquise no estoque..."
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
                     className="pl-10 md:pl-12 h-12 md:h-14 text-sm md:text-base bg-white shadow-sm rounded-xl"

@@ -52,17 +52,17 @@ model User {
 }
 
 model Furniture {
-  id        String          @id @default(cuid())
-  name      String
-  type      String
-  quantity  Int             @default(0)
-  status    FurnitureStatus @default(NOVO)
-  location  String
-  patrimony String?
-  borrower  String?  
-  observation String?       
-  createdAt DateTime        @default(now())
-  updatedAt DateTime        @updatedAt
+  id          String          @id @default(cuid())
+  name        String
+  type        String
+  quantity    Int             @default(0)
+  status      FurnitureStatus @default(NOVO)
+  location    String
+  patrimony   String?
+  borrower    String?  
+  observation String?        
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
   
   // O móvel agora se vincula diretamente ao item do pedido
   requestItems RequestItem[] 
@@ -79,8 +79,13 @@ model Request {
   userId          String
   sector          String        // Setor destino de todo o pedido
   status          RequestStatus @default(PENDENTE)
-  notes           String?       
+  notes           String?        
   rejectionReason String?       // <-- COLUNA NOVA ADICIONADA AQUI!
+  
+  // 🔥 CAMPOS NOVOS PARA A INTELIGÊNCIA ARTIFICIAL:
+  aiSummary       String?       // Vai guardar o resumo gerado pela IA
+  isUrgent        Boolean       @default(false) // Vai marcar se a IA achou urgente
+  
   reviewedAt      DateTime?
   createdAt       DateTime      @default(now())
   updatedAt       DateTime      @updatedAt
@@ -130,11 +135,11 @@ model Movement {
 // ----------------------------------------------------------------------
 
 model PillowInventory {
-  id              String   @id @default(cuid())
-  stockLung       Int      @default(0)
+  id               String   @id @default(cuid())
+  stockLung        Int      @default(0)
   stockCirculating Int      @default(0)
-  minimumStock    Int      @default(20)   // NOVO: Alerta de estoque mínimo
-  updatedAt       DateTime @updatedAt
+  minimumStock     Int      @default(20)   // NOVO: Alerta de estoque mínimo
+  updatedAt        DateTime @updatedAt
 
   @@map("pillow_inventory")
 }
