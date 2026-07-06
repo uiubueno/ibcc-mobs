@@ -1,5 +1,5 @@
 import { generateText } from "ai";
-import { groq } from "@ai-sdk/groq";
+import { groqModel } from "@/lib/groq";
 import { z } from "zod";
 
 export const maxDuration = 30;
@@ -104,7 +104,7 @@ Não escreva texto antes ou depois do JSON.
 `;
 
     const { text } = await generateText({
-      model: groq("llama-3.3-70b-versatile"),
+      model: groqModel,
       prompt,
       temperature: 0,
     });
