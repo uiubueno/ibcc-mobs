@@ -32,7 +32,19 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     if (requestData.status === 'PENDENTE' && status === 'EM_SEPARACAO') {
       const updatedRequest = await prisma.request.update({
         where: { id: id },
-        data: { status, notes, rejectionReason, reviewedAt: new Date() }
+        data: { 
+          status, 
+          notes, 
+          rejectionReason, 
+          reviewedAt: new Date(),
+          // 🔥 CASCATA: Atualiza os itens também!
+          items: {
+            updateMany: {
+              where: { requestId: id },
+              data: { status: status }
+            }
+          }
+        }
       })
       return NextResponse.json(updatedRequest)
     }
@@ -44,7 +56,14 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
         status, 
         notes, 
         rejectionReason, 
-        reviewedAt: new Date() 
+        reviewedAt: new Date(),
+        // 🔥 A MÁGICA AQUI: Cascata de status para os itens
+        items: {
+          updateMany: {
+            where: { requestId: id },
+            data: { status: status }
+          }
+        }
       },
       // Precisamos trazer o "user" aqui para saber para qual e-mail enviar!
       include: { user: true } 

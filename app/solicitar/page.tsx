@@ -231,6 +231,7 @@ export default function RequestPage() {
     setCart(cart.filter((item) => item.type !== type));
   };
 
+  // 🔥 NOVA FUNÇÃO HANDLE REQUEST COM IA ACOPLADA
   const handleRequest = async (e: React.FormEvent) => {
     e.preventDefault();
     if (cart.length === 0) return toast.error("Seu pedido está vazio! Adicione itens do catálogo.");
@@ -238,13 +239,44 @@ export default function RequestPage() {
     if (cart.some((item) => !item.reason.trim())) return toast.error("Por favor, preencha o motivo para todos os itens do pedido.");
 
     toast.promise(
-      fetch("/api/requests", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ items: cart, sector }),
-      }),
+      (async () => {
+        // 🔥 PASSO 1: O INSPETOR SILENCIOSO (IA LÊ O PEDIDO ANTES DE SALVAR)
+        let aiSummary = "Pedido registrado";
+        let isUrgent = false;
+
+        try {
+          const aiResponse = await fetch("/api/ai/analyze", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ sector, items: cart }),
+          });
+
+          if (aiResponse.ok) {
+            const aiData = await aiResponse.json();
+            aiSummary = aiData.summary || aiSummary;
+            isUrgent = aiData.isUrgent || false;
+          }
+        } catch (error) {
+          console.warn("IA falhou, mas o pedido seguirá normalmente.", error);
+        }
+
+        // 🔥 PASSO 2: SALVA NO BANCO DE DADOS JUNTO COM OS DADOS DA IA
+        const res = await fetch("/api/requests", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ 
+            items: cart, 
+            sector,
+            aiSummary,   // Salvando o resumo de 10 palavras que a IA criou
+            isUrgent     // Salvando se a IA achou urgente ou não
+          }),
+        });
+
+        if (!res.ok) throw new Error("Erro ao salvar no banco");
+        return res.json();
+      })(),
       {
-        loading: "Processando seu pedido...",
+        loading: "Analisando justificativas e processando pedido...",
         success: () => {
           setSector("");
           setSearchQuery("");

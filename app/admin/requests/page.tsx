@@ -215,7 +215,7 @@ export default function AdminRequestsPage() {
     );
   };
   
-// 🔥 IA REAL CONECTADA
+  // 🔥 IA REAL CONECTADA
   const generateAIReason = async (type: string) => {
     if (isGeneratingAI) return;
     setIsGeneratingAI(true);
@@ -369,13 +369,27 @@ export default function AdminRequestsPage() {
                   <CardContent className="p-4 md:p-6 space-y-4">
                     
                     <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center border-b border-slate-100 pb-3 md:pb-4 gap-3 sm:gap-0">
-                      <div className="min-w-0 pr-2">
-                        <h3 className="font-black text-lg md:text-xl text-slate-900 uppercase leading-tight group-hover:text-amber-600 transition-colors truncate">
-                          {req.sector}
-                        </h3>
+                      <div className="min-w-0 pr-2 flex-1">
+                        <div className="flex items-center gap-2">
+                          <h3 className="font-black text-lg md:text-xl text-slate-900 uppercase leading-tight group-hover:text-amber-600 transition-colors truncate">
+                            {req.sector}
+                          </h3>
+                          {/* 🔥 O ALERTA PISCANDO DA IA APARECE AQUI SE FOR URGENTE */}
+                          {req.isUrgent && (
+                            <Badge className="bg-red-600 text-white animate-pulse shadow-[0_0_10px_rgba(220,38,38,0.6)] border-none text-[9px] font-black uppercase tracking-widest shrink-0">
+                              🚨 URGENTE
+                            </Badge>
+                          )}
+                        </div>
                         <p className="text-[9px] md:text-[10px] text-slate-500 font-bold uppercase tracking-widest mt-1 truncate">
                           Solicitante: {req.user?.name || 'Não identificado'}
                         </p>
+                        {/* 🔥 O RESUMO DA IA APARECE AQUI */}
+                        {req.aiSummary && (
+                          <p className="text-[10px] md:text-xs text-blue-600 font-bold bg-blue-50/80 p-1.5 rounded border border-blue-100 mt-2 inline-block">
+                            🤖 Resumo IA: {req.aiSummary}
+                          </p>
+                        )}
                       </div>
                       
                       <div className="flex items-center gap-2 shrink-0 self-start sm:self-auto">
