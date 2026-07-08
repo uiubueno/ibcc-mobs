@@ -2,27 +2,46 @@ import { NextResponse } from 'next/server'
 import { auth } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 
-export async function GET() { // 🔥 O 'req: Request' foi removido daqui!
+// 🔥 O 'req: Request' VOLTOU! Precisamos dele para ler a URL.
+export async function GET(req: Request) { 
   const session = await auth()
   if (!session || (session.user as any)?.role !== 'ADMIN') {
     return NextResponse.json({ error: 'Não autorizado' }, { status: 401 })
   }
 
   try {
-    // Busca pedidos dos últimos 30 dias que já foram entregues
-    const trintaDiasAtras = new Date()
-    trintaDiasAtras.setDate(trintaDiasAtras.getDate() - 30)
+    // 1. Pega os parâmetros da URL que o Frontend enviou
+    const { searchParams } = new URL(req.url)
+    const from = searchParams.get('from')
+    const to = searchParams.get('to')
 
+    // 2. Monta o filtro de data flexível
+    let dateFilter: any = {}
+    
+    if (from && to) {
+      // Se o usuário filtrou, pega o período exato (do minuto 00:00 até 23:59)
+      dateFilter = {
+        gte: new Date(`${from}T00:00:00.000Z`),
+        lte: new Date(`${to}T23:59:59.999Z`)
+      }
+    } else {
+      // Se não tem filtro na URL, o padrão é mostrar os últimos 30 dias
+      const trintaDiasAtras = new Date()
+      trintaDiasAtras.setDate(trintaDiasAtras.getDate() - 30)
+      dateFilter = { gte: trintaDiasAtras }
+    }
+
+    // 3. Busca os pedidos cruzando com o nosso dateFilter dinâmico
     const completedRequests = await prisma.request.findMany({
       where: {
         status: 'ENTREGUE',
-        createdAt: { gte: trintaDiasAtras }
+        createdAt: dateFilter
       },
       include: { items: true }
     })
 
     const totalRequests = await prisma.request.count({
-      where: { createdAt: { gte: trintaDiasAtras } }
+      where: { createdAt: dateFilter }
     })
 
     let totalHours = 0

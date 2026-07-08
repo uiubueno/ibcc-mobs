@@ -1,6 +1,7 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback, Suspense } from "react"
+import { useSearchParams } from "next/navigation"
 import { toast } from "sonner"
 import { jsPDF } from "jspdf"
 import autoTable from "jspdf-autotable"
@@ -16,7 +17,6 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog"
 import { 
-  BarChart3, 
   Clock, 
   TrendingUp, 
   FileText, 
@@ -25,25 +25,42 @@ import {
   Target
 } from "lucide-react"
 
-export default function AnalyticsPage() {
+// 🔥 IMPORTAMOS O SEU COMPONENTE PADRONIZADO AQUI
+import { DateRangeFilter } from "@/components/DateRangeFilter"
+
+// Separamos o conteúdo em um sub-componente para o useSearchParams funcionar perfeitamente
+function AnalyticsDashboard() {
   const [data, setData] = useState<any>(null)
   const [loading, setLoading] = useState(true)
   const [openReportModal, setOpenReportModal] = useState(false)
+  
+  // Lemos as datas direto da URL (que o seu DateRangeFilter atualiza)
+  const searchParams = useSearchParams()
+  const from = searchParams.get('from')
+  const to = searchParams.get('to')
 
-  useEffect(() => {
-    const fetchData = async () => {
-      try {
-        const res = await fetch('/api/analytics')
-        const json = await res.json()
-        setData(json)
-      } catch (e) {
-        toast.error("Erro ao carregar métricas.")
-      } finally {
-        setLoading(false)
-      }
+  const fetchData = useCallback(async () => {
+    setLoading(true)
+    try {
+      const query = new URLSearchParams()
+      if (from) query.append('from', from)
+      if (to) query.append('to', to)
+      
+      const url = `/api/analytics${query.toString() ? `?${query.toString()}` : ''}`
+      const res = await fetch(url)
+      const json = await res.json()
+      setData(json)
+    } catch (e) {
+      toast.error("Erro ao carregar métricas.")
+    } finally {
+      setLoading(false)
     }
+  }, [from, to])
+
+  // Recarrega os dados toda vez que a URL (as datas) mudar
+  useEffect(() => {
     fetchData()
-  }, [])
+  }, [fetchData])
 
   const loadImageProportional = (url: string): Promise<{ base64: string, width: number, height: number }> => {
     return new Promise((resolve, reject) => {
@@ -77,6 +94,14 @@ export default function AnalyticsPage() {
       const time = now.toLocaleTimeString("pt-BR", { hour: '2-digit', minute: '2-digit' })
       const ibccPurple = [147, 51, 234] as [number, number, number]
 
+      // Lógica do período para mostrar no PDF
+      let periodText = "Últimos 30 dias (Padrão)"
+      if (from && to) {
+        const startBR = from.split('-').reverse().join('/')
+        const endBR = to.split('-').reverse().join('/')
+        periodText = `${startBR} até ${endBR}`
+      }
+
       const logoData = await loadImageProportional("/logo-ibcc.png")
       const pdfWidth = 45; 
       const pdfHeight = (logoData.height * pdfWidth) / logoData.width;
@@ -102,7 +127,7 @@ export default function AnalyticsPage() {
 
       doc.setFontSize(10)
       doc.setFont("helvetica", "bold")
-      doc.text("Resumo Operacional (Últimos 30 dias):", 14, 15 + pdfHeight + 60)
+      doc.text(`Resumo Operacional (Período: ${periodText}):`, 14, 15 + pdfHeight + 60)
       doc.setFont("helvetica", "normal")
       doc.text(`• Total de Solicitações: ${data.totalRequests}`, 14, 15 + pdfHeight + 68)
       doc.text(`• Solicitações Concluídas: ${data.completedCount} (${data.completionRate}%)`, 14, 15 + pdfHeight + 74)
@@ -139,94 +164,121 @@ export default function AnalyticsPage() {
     }
   }
 
-  if (loading) return <div className="flex justify-center items-center h-screen"><RefreshCcw className="animate-spin w-8 h-8 text-purple-500" /></div>
-
   return (
     <div className="p-4 md:p-8 max-w-7xl mx-auto space-y-6 md:space-y-8 animate-in fade-in duration-700">
-      <header className="flex flex-col md:flex-row justify-between items-start md:items-end gap-4 border-b pb-4 md:pb-6">
+      
+      {/* HEADER E FILTRO PADRONIZADO */}
+      <header className="flex flex-col xl:flex-row justify-between items-start xl:items-center gap-4 border-b pb-4 md:pb-6">
         <div>
           <h1 className="text-2xl md:text-3xl font-black text-slate-900 uppercase">Desempenho & Resposta</h1>
-          <p className="text-sm md:text-base text-slate-500 font-medium italic mt-1">Métricas de logística (Últimos 30 dias)</p>
+          <p className="text-sm md:text-base text-slate-500 font-medium italic mt-1">Análise de métricas de logística</p>
         </div>
-        <Button onClick={() => setOpenReportModal(true)} className="w-full sm:w-auto bg-purple-600 hover:bg-purple-700 text-white font-black h-12 px-6 rounded-xl shadow-lg">
-          <FileText className="w-4 h-4 mr-2" /> GERAR RELATÓRIO
-        </Button>
+        
+        <div className="flex flex-col sm:flex-row items-center gap-3 w-full xl:w-auto">
+          {/* 🔥 SEU COMPONENTE PADRÃO ENTRA AQUI! */}
+          <div className="w-full sm:w-auto">
+            <DateRangeFilter />
+          </div>
+
+          <Button 
+            onClick={() => setOpenReportModal(true)} 
+            disabled={loading}
+            className="w-full sm:w-auto bg-purple-600 hover:bg-purple-700 text-white font-black h-10 px-6 shadow-md"
+          >
+            <FileText className="w-4 h-4 mr-2" /> GERAR RELATÓRIO
+          </Button>
+        </div>
       </header>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6">
-        <Card className="border-l-4 border-l-blue-500 shadow-sm">
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-xs font-black text-slate-400 uppercase tracking-widest">Média Global</CardTitle>
-            <Clock className="w-5 h-5 text-blue-500" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-3xl md:text-4xl font-black text-slate-800">{data?.averageSla} <span className="text-lg text-slate-400 font-medium">horas</span></div>
-          </CardContent>
-        </Card>
+      {loading ? (
+        <div className="flex justify-center items-center py-20">
+          <RefreshCcw className="animate-spin w-8 h-8 text-purple-500" />
+        </div>
+      ) : (
+        <>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6">
+            <Card className="border-l-4 border-l-blue-500 shadow-sm">
+              <CardHeader className="flex flex-row items-center justify-between pb-2">
+                <CardTitle className="text-xs font-black text-slate-400 uppercase tracking-widest">Média Global</CardTitle>
+                <Clock className="w-5 h-5 text-blue-500" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-3xl md:text-4xl font-black text-slate-800">{data?.averageSla} <span className="text-lg text-slate-400 font-medium">horas</span></div>
+              </CardContent>
+            </Card>
 
-        <Card className="border-l-4 border-l-emerald-500 shadow-sm">
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-xs font-black text-slate-400 uppercase tracking-widest">Taxa de Conclusão</CardTitle>
-            <Target className="w-5 h-5 text-emerald-500" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-3xl md:text-4xl font-black text-slate-800">{data?.completionRate}%</div>
-          </CardContent>
-        </Card>
+            <Card className="border-l-4 border-l-emerald-500 shadow-sm">
+              <CardHeader className="flex flex-row items-center justify-between pb-2">
+                <CardTitle className="text-xs font-black text-slate-400 uppercase tracking-widest">Taxa de Conclusão</CardTitle>
+                <Target className="w-5 h-5 text-emerald-500" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-3xl md:text-4xl font-black text-slate-800">{data?.completionRate}%</div>
+              </CardContent>
+            </Card>
 
-        <Card className="border-l-4 border-l-purple-500 shadow-sm">
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-xs font-black text-slate-400 uppercase tracking-widest">Pico de Demanda</CardTitle>
-            <TrendingUp className="w-5 h-5 text-purple-500" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-xl md:text-2xl font-black text-slate-800 truncate">{data?.sectorRanking[0]?.sector || "N/A"}</div>
-          </CardContent>
-        </Card>
-      </div>
-
-      <Card className="shadow-sm border-slate-200">
-        <CardHeader className="bg-slate-50/50 border-b pb-4">
-          <CardTitle className="text-sm font-black flex items-center gap-2 uppercase text-slate-700">
-            <Building2 className="w-4 h-4 text-slate-400" /> Desempenho por Setor
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="p-0">
-          <div className="overflow-x-auto">
-            <table className="w-full text-left">
-              <thead className="bg-slate-50 text-[10px] font-black text-slate-400 uppercase tracking-widest">
-                <tr>
-                  <th className="px-6 py-4">Setor</th>
-                  <th className="px-6 py-4 text-center">Volume</th>
-                  <th className="px-6 py-4 text-center">Tempo Médio</th>
-                  <th className="px-6 py-4 text-right">Status</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100">
-                {data?.sectorRanking.map((item: any, idx: number) => {
-                  const timeHrs = parseFloat(item.avgTime)
-                  return (
-                    <tr key={idx} className="hover:bg-slate-50 transition-colors">
-                      <td className="px-6 py-4 font-bold text-slate-700 text-sm">{item.sector}</td>
-                      <td className="px-6 py-4 text-center font-medium">{item.requests} pedidos</td>
-                      <td className="px-6 py-4 text-center font-mono font-bold text-slate-600">{item.avgTime}h</td>
-                      <td className="px-6 py-4 text-right">
-                        {timeHrs <= 24 ? <Badge className="bg-emerald-100 text-emerald-700 font-black text-[9px]">NO MESMO DIA</Badge>
-                        : timeHrs <= 72 ? <Badge className="bg-blue-100 text-blue-700 font-black text-[9px]">PRAZO MÉDIO</Badge>
-                        : <Badge className="bg-amber-100 text-amber-700 font-black text-[9px]">ENVOLVE COMPRAS</Badge>}
-                      </td>
-                    </tr>
-                  )
-                })}
-              </tbody>
-            </table>
+            <Card className="border-l-4 border-l-purple-500 shadow-sm">
+              <CardHeader className="flex flex-row items-center justify-between pb-2">
+                <CardTitle className="text-xs font-black text-slate-400 uppercase tracking-widest">Pico de Demanda</CardTitle>
+                <TrendingUp className="w-5 h-5 text-purple-500" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-xl md:text-2xl font-black text-slate-800 truncate">{data?.sectorRanking[0]?.sector || "N/A"}</div>
+              </CardContent>
+            </Card>
           </div>
-        </CardContent>
-      </Card>
 
-{/* MODAL DE RELATÓRIO CORRIGIDO */}
-<Dialog open={openReportModal} onOpenChange={setOpenReportModal}>
-        <DialogContent className="max-w-sm rounded-2xl p-0 overflow-hidden">
+          <Card className="shadow-sm border-slate-200">
+            <CardHeader className="bg-slate-50/50 border-b pb-4">
+              <CardTitle className="text-sm font-black flex items-center gap-2 uppercase text-slate-700">
+                <Building2 className="w-4 h-4 text-slate-400" /> Desempenho por Setor
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="p-0">
+              <div className="overflow-x-auto">
+                <table className="w-full text-left">
+                  <thead className="bg-slate-50 text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                    <tr>
+                      <th className="px-6 py-4">Setor</th>
+                      <th className="px-6 py-4 text-center">Volume</th>
+                      <th className="px-6 py-4 text-center">Tempo Médio</th>
+                      <th className="px-6 py-4 text-right">Status</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {data?.sectorRanking?.map((item: any, idx: number) => {
+                      const timeHrs = parseFloat(item.avgTime)
+                      return (
+                        <tr key={idx} className="hover:bg-slate-50 transition-colors">
+                          <td className="px-6 py-4 font-bold text-slate-700 text-sm">{item.sector}</td>
+                          <td className="px-6 py-4 text-center font-medium">{item.requests} pedidos</td>
+                          <td className="px-6 py-4 text-center font-mono font-bold text-slate-600">{item.avgTime}h</td>
+                          <td className="px-6 py-4 text-right">
+                            {timeHrs <= 24 ? <Badge className="bg-emerald-100 text-emerald-700 font-black text-[9px]">NO MESMO DIA</Badge>
+                            : timeHrs <= 72 ? <Badge className="bg-blue-100 text-blue-700 font-black text-[9px]">PRAZO MÉDIO</Badge>
+                            : <Badge className="bg-amber-100 text-amber-700 font-black text-[9px]">ENVOLVE COMPRAS</Badge>}
+                          </td>
+                        </tr>
+                      )
+                    })}
+                    {(!data?.sectorRanking || data.sectorRanking.length === 0) && (
+                      <tr>
+                        <td colSpan={4} className="py-12 text-center text-slate-400 italic">
+                          Nenhum dado encontrado para o período selecionado.
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </CardContent>
+          </Card>
+        </>
+      )}
+
+      {/* MODAL DE RELATÓRIO */}
+      <Dialog open={openReportModal} onOpenChange={setOpenReportModal}>
+        <DialogContent className="max-w-sm rounded-2xl p-0 overflow-hidden bg-white">
           <div className="p-6 pb-8">
             <DialogHeader>
               <DialogTitle className="text-lg font-black flex items-center gap-2">
@@ -256,5 +308,14 @@ export default function AnalyticsPage() {
         </DialogContent>
       </Dialog>
     </div>
+  )
+}
+
+// O export default envolve tudo num Suspense para que o useSearchParams não quebre o Build do Next.js
+export default function AnalyticsPage() {
+  return (
+    <Suspense fallback={<div className="flex justify-center py-20"><RefreshCcw className="animate-spin w-8 h-8 text-purple-500" /></div>}>
+      <AnalyticsDashboard />
+    </Suspense>
   )
 }

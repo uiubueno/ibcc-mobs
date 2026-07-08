@@ -18,7 +18,8 @@ export default async function HomePage(props: {
   if (!session || (session.user as any)?.role !== "ADMIN") redirect('/solicitar')
 
   const searchParams = await props.searchParams
-  const { from, to } = searchParams
+  const from = searchParams?.from
+  const to = searchParams?.to
 
   const dateFilter = from && to ? {
     createdAt: {
@@ -27,9 +28,11 @@ export default async function HomePage(props: {
     }
   } : {}
 
-  // 🔥 BUSCA OS LIMITES JUNTO COM OS OUTROS DADOS
   const [totalItems, stockByType, allRequests, dbLimits] = await Promise.all([
-    prisma.furniture.aggregate({ _sum: { quantity: true } }),
+    prisma.furniture.aggregate({ 
+      where: { status: { in: ['NOVO', 'USADO'] } },
+      _sum: { quantity: true } 
+    }),
     prisma.furniture.groupBy({ 
       by: ['type'], 
       _sum: { quantity: true },
@@ -42,10 +45,11 @@ export default async function HomePage(props: {
     prisma.stockLimit.findMany()
   ])
 
-  // Contagem alinhada com a Triagem (Conta Pedidos para Pendentes)
+  // 🔥 A LINHA QUE FALTAVA PARA PARAR O ERRO:
+  const totalInventoryCount = totalItems._sum.quantity || 0;
+
   const pendingRequests = allRequests.filter(r => r.status === 'PENDENTE').length
   
-  // Extrai todos os itens com os seus respectivos setores para análise
   const allItems = allRequests.flatMap(r => (r.items || []).map((i: any) => ({ ...i, sector: r.sector })))
   
   const separationCount = allItems.filter(i => i.status === 'EM_SEPARACAO').length
@@ -53,7 +57,6 @@ export default async function HomePage(props: {
   const purchaseCount = allItems.filter(i => i.status === 'EM_COMPRA').length
   const rejectedCount = allItems.filter(i => i.status === 'RECUSADO').length
 
-  // 🔥 O GRÁFICO PUXA OS VALORES EXATOS DOS CARDS
   const statusData = [
     { name: 'PENDENTE', value: pendingRequests },
     { name: 'EM SEPARAÇÃO', value: separationCount },
@@ -62,7 +65,6 @@ export default async function HomePage(props: {
     { name: 'RECUSADO', value: rejectedCount }
   ].filter(item => item.value > 0)
 
-  // RANKING DE SETORES BASEADO NA QUANTIDADE REAL DE ITENS ENTREGUES
   const sectorCounts = allItems
     .filter(item => item.status === 'ENTREGUE') 
     .reduce((acc: any, item) => {
@@ -93,10 +95,8 @@ export default async function HomePage(props: {
         </Suspense>
       </header>
 
-      {/* GRID COM A NOVA ORDEM VISUAL DOS CARDS */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
         
-        {/* CARD 1: PENDENTES */}
         <Card className="border-l-4 border-l-amber-500 shadow-sm hover:shadow-md transition-shadow">
           <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
             <CardTitle className="text-xs md:text-sm font-medium text-slate-500 uppercase tracking-wider">Pendentes</CardTitle>
@@ -110,7 +110,6 @@ export default async function HomePage(props: {
           </CardContent>
         </Card>
 
-        {/* CARD 2: EM SEPARAÇÃO */}
         <Card className="border-l-4 border-l-purple-500 shadow-sm bg-purple-50/30 hover:shadow-md transition-shadow">
           <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
             <CardTitle className="text-xs md:text-sm font-medium text-slate-600 uppercase tracking-wider">Em Separação</CardTitle>
@@ -122,7 +121,6 @@ export default async function HomePage(props: {
           </CardContent>
         </Card>
 
-        {/* CARD 3: EM COMPRA */}
         <Card className="border-l-4 border-l-teal-500 shadow-sm hover:shadow-md transition-shadow bg-teal-50/30">
           <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
             <CardTitle className="text-xs md:text-sm font-medium text-slate-600 uppercase tracking-wider">Em Compra</CardTitle>
@@ -134,7 +132,6 @@ export default async function HomePage(props: {
           </CardContent>
         </Card>
 
-        {/* CARD 4: RECUSADOS (Trocado de lugar) */}
         <Card className="border-l-4 border-l-red-500 shadow-sm hover:shadow-md transition-shadow bg-red-50/30">
           <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
             <CardTitle className="text-xs md:text-sm font-medium text-slate-600 uppercase tracking-wider">Recusados</CardTitle>
@@ -146,7 +143,6 @@ export default async function HomePage(props: {
           </CardContent>
         </Card>
 
-        {/* CARD 5: ENTREGUES (Trocado para o centro da segunda linha) */}
         <Card className="border-none shadow-md shadow-blue-500/10 bg-blue-600 text-white hover:shadow-lg hover:shadow-blue-500/20 transition-shadow">
           <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
             <CardTitle className="text-xs md:text-sm font-medium text-blue-100 uppercase tracking-wider">Entregues</CardTitle>
@@ -158,14 +154,13 @@ export default async function HomePage(props: {
           </CardContent>
         </Card>
 
-        {/* CARD 6: ESTOQUE TOTAL */}
         <Card className="border-l-4 border-l-slate-400 shadow-sm hover:shadow-md transition-shadow">
           <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
             <CardTitle className="text-xs md:text-sm font-medium text-slate-500 uppercase tracking-wider">Estoque Total</CardTitle>
             <Package className="h-4 w-4 md:h-5 md:w-5 text-slate-400" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl md:text-3xl font-bold">{totalItems._sum.quantity || 0}</div>
+            <div className="text-2xl md:text-3xl font-bold">{totalInventoryCount}</div>
             <p className="text-[9px] md:text-[10px] text-slate-400 mt-2 font-bold uppercase tracking-wider">Itens catalogados</p>
           </CardContent>
         </Card>

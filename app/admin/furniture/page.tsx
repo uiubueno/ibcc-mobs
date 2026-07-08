@@ -90,7 +90,7 @@ export default function FurniturePage() {
 
   useEffect(() => { fetchData() }, [])
 
-  // --- LÓGICA DE BUSCA, FILTRO E PAGINAÇÃO ---
+  // --- LÓGICA DE BUSCA, FILTRO E PAGINAÇÃO CORRIGIDA ---
   const filteredItems = furnitureList.filter(item => {
     const matchesSearch = item.name.toLowerCase().includes(search.toLowerCase()) ||
       (item.patrimony && item.patrimony.toLowerCase().includes(search.toLowerCase())) ||
@@ -98,12 +98,15 @@ export default function FurniturePage() {
       (item.location && item.location.toLowerCase().includes(search.toLowerCase())) ||
       (item.borrower && item.borrower.toLowerCase().includes(search.toLowerCase()));
 
+    // 🔥 FILTRO BLINDADO
     const matchesView = 
       filterView === 'TODOS' 
         ? true 
         : filterView === 'ESTOQUE' 
-          ? item.quantity > 0 && item.status !== 'EMPRESTADO' && item.status !== 'MANUTENCAO'
-          : item.quantity === 0 || item.status === 'EMPRESTADO';
+          // Se for ESTOQUE, não pode estar em uso, emprestado ou manutenção
+          ? item.quantity > 0 && !['EM_USO', 'EMPRESTADO', 'MANUTENCAO'].includes(item.status)
+          // Se for USO, pega o que estiver alocado (independente da qtd 0 ou 1)
+          : ['EM_USO', 'EMPRESTADO'].includes(item.status) || item.quantity === 0;
 
     return matchesSearch && matchesView;
   })
@@ -115,6 +118,23 @@ export default function FurniturePage() {
   const openMaintenanceModal = (item: any) => {
     setMaintenanceItem(item)
     setMaintenanceQty('1')
+  }
+
+  const getStatusBadgeClass = (itemStatus: string) => {
+    switch (itemStatus) {
+      case 'NOVO':
+        return 'bg-green-100 text-green-700 border-green-200'
+      case 'USADO':
+        return 'bg-amber-100 text-amber-700 border-amber-200'
+      case 'CONSERTO':
+      case 'MANUTENCAO':
+        return 'bg-red-100 text-red-700 border-red-200'
+      case 'EM_USO':
+      case 'EMPRESTADO':
+        return 'bg-purple-100 text-purple-700 border-purple-200'
+      default:
+        return 'bg-slate-100 text-slate-700 border-slate-200'
+    }
   }
 
   // --- AÇÕES ---
@@ -173,13 +193,11 @@ export default function FurniturePage() {
     }
   }
 
-  // 🔥 LÓGICA DO PATRIMÔNIO: Se o usuário preencher o patrimônio, a quantidade é forçada para 1 e o campo bloqueado
   const handlePatrimonyChange = (val: string, index: number) => {
     const newPats = [...bulkPatrimonies];
     newPats[index] = val;
     setBulkPatrimonies(newPats);
     
-    // Trava para "Lote" desativado: se for um único item com patrimônio, fixa a quantidade em 1.
     if (!isBulk && val.trim() !== '') {
       setQuantity('1');
     }
@@ -250,7 +268,6 @@ export default function FurniturePage() {
     )
   }
 
-  // Verifica se o campo de Quantidade deve estar desabilitado no modo "Sem Lote"
   const isQuantityDisabled = !isBulk && bulkPatrimonies[0].trim() !== '';
 
   return (
@@ -329,7 +346,6 @@ export default function FurniturePage() {
                       <Label className="text-[10px] md:text-xs font-black text-slate-500 uppercase tracking-widest">Qtd</Label>
                       {isQuantityDisabled && <Lock className="w-3 h-3 text-slate-400" />}
                     </div>
-                    {/* Input com trava inteligente */}
                     <Input 
                       type="number" 
                       min="1" 
@@ -357,14 +373,12 @@ export default function FurniturePage() {
                         key={idx} 
                         required={isBulk} 
                         value={pat} 
-                        // 🔥 Substituído pela função que trava a quantidade
                         onChange={(e) => handlePatrimonyChange(e.target.value, idx)} 
                         placeholder="Patrimônio (Opcional)" 
                         className="h-10 md:h-8 text-xs font-mono bg-slate-50 focus-visible:ring-blue-500" 
                       />
                     ))}
                   </div>
-                  {/* Mensagem visual da trava para o usuário entender */}
                   {isQuantityDisabled && (
                     <p className="text-[9px] md:text-[10px] text-amber-600 font-bold mt-1.5 flex items-center gap-1 bg-amber-50 p-1.5 rounded border border-amber-100">
                       <Lock className="w-3 h-3" /> Itens com patrimônio são peças únicas. QTD travada.
@@ -438,9 +452,9 @@ export default function FurniturePage() {
                       <TableRow><TableCell colSpan={5} className="py-20 text-center text-slate-400 italic">Nenhum item encontrado nesta visão.</TableCell></TableRow>
                     ) : (
                       paginatedItems.map((item) => (
-                        <TableRow key={`desk-${item.id}`} className={`group transition-colors ${item.quantity === 0 ? 'bg-slate-50/50 opacity-75 hover:opacity-100' : 'hover:bg-slate-50'}`}>
+                        <TableRow key={`desk-${item.id}`} className={`group transition-colors ${item.quantity === 0 && !['EM_USO', 'EMPRESTADO'].includes(item.status) ? 'bg-slate-50/50 opacity-75 hover:opacity-100' : 'hover:bg-slate-50'}`}>
                           <TableCell className="pl-6 py-4">
-                            <div className={`font-bold ${item.quantity === 0 ? 'text-slate-600 line-through decoration-slate-300' : 'text-slate-900'}`}>{item.name}</div>
+                            <div className={`font-bold ${item.quantity === 0 && !['EM_USO', 'EMPRESTADO'].includes(item.status) ? 'text-slate-600 line-through decoration-slate-300' : 'text-slate-900'}`}>{item.name}</div>
                             <div className="flex flex-col gap-1 mt-1">
                               <div className="flex items-center gap-2">
                                 <span className="text-[10px] text-slate-500 font-black uppercase tracking-tighter bg-slate-100 px-2 py-0.5 rounded-md">
@@ -452,7 +466,6 @@ export default function FurniturePage() {
                                   </span>
                                 )}
                               </div>
-                              {/* Exibe com quem está se for emprestado */}
                               {item.borrower && (
                                 <span className="text-[10px] font-bold text-purple-600 uppercase tracking-widest mt-1">
                                   Retirado por: {item.borrower}
@@ -465,22 +478,22 @@ export default function FurniturePage() {
                               {item.patrimony || 'S/N'}
                             </Badge>
                           </TableCell>
-                          <TableCell className={`text-center font-black ${item.quantity === 0 ? 'text-red-500' : 'text-slate-700'}`}>
-                            {item.status === 'EMPRESTADO' ? 1 : item.quantity}
+                          <TableCell className={`text-center font-black ${item.quantity === 0 && !['EM_USO', 'EMPRESTADO'].includes(item.status) ? 'text-red-500' : 'text-slate-700'}`}>
+                            {['EM_USO', 'EMPRESTADO'].includes(item.status) ? 1 : item.quantity}
                           </TableCell>
                           <TableCell>
-                            <Badge className={`text-[9px] font-black uppercase ${item.status === 'NOVO' ? 'bg-green-100 text-green-700' : item.status === 'CONSERTO' ? 'bg-red-100 text-red-700' : item.status === 'EMPRESTADO' ? 'bg-purple-100 text-purple-700' : 'bg-amber-100 text-amber-700'}`}>
+                            <Badge variant="outline" className={`text-[9px] font-black uppercase border ${getStatusBadgeClass(item.status)}`}>
                               {item.status}
                             </Badge>
                           </TableCell>
                           <TableCell className="text-right pr-6">
                             <div className="flex justify-end gap-1">
-                              {item.quantity === 0 ? (
+                              {['EM_USO', 'EMPRESTADO'].includes(item.status) || item.quantity === 0 ? (
                                 <Button 
                                   variant="ghost" size="sm" 
                                   className="h-8 w-8 p-0 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50"
                                   onClick={() => { setReturnItem(item); setReturnQty('1'); setReturnStatus('USADO'); }}
-                                  title="Devolver ao Estoque"
+                                  title="Devolver ao Estoque Central"
                                 >
                                   <CornerDownLeft className="w-4 h-4" />
                                 </Button>
@@ -533,10 +546,10 @@ export default function FurniturePage() {
                   <div className="py-16 text-center text-slate-400 italic text-sm">Nenhum item encontrado nesta visão.</div>
                 ) : (
                   paginatedItems.map((item) => (
-                    <div key={`mob-${item.id}`} className={`p-4 space-y-3 transition-colors ${item.quantity === 0 ? 'bg-slate-50/50' : 'bg-white hover:bg-slate-50'}`}>
+                    <div key={`mob-${item.id}`} className={`p-4 space-y-3 transition-colors ${item.quantity === 0 && !['EM_USO', 'EMPRESTADO'].includes(item.status) ? 'bg-slate-50/50' : 'bg-white hover:bg-slate-50'}`}>
                       <div className="flex justify-between items-start gap-2">
                         <div className="min-w-0">
-                          <p className={`font-bold text-base truncate ${item.quantity === 0 ? 'text-slate-500 line-through' : 'text-slate-900'}`}>{item.name}</p>
+                          <p className={`font-bold text-base truncate ${item.quantity === 0 && !['EM_USO', 'EMPRESTADO'].includes(item.status) ? 'text-slate-500 line-through' : 'text-slate-900'}`}>{item.name}</p>
                           <div className="flex flex-col gap-1 mt-1">
                             <div className="flex flex-wrap items-center gap-1.5">
                               <Badge variant="secondary" className="text-[9px] font-black uppercase bg-slate-100 text-slate-500">
@@ -556,7 +569,7 @@ export default function FurniturePage() {
                           </div>
                         </div>
                         <div className="flex flex-col items-end gap-2">
-                          <Badge className={`text-[9px] font-black uppercase shrink-0 ${item.status === 'NOVO' ? 'bg-green-100 text-green-700' : item.status === 'CONSERTO' ? 'bg-red-100 text-red-700' : item.status === 'EMPRESTADO' ? 'bg-purple-100 text-purple-700' : 'bg-amber-100 text-amber-700'}`}>
+                          <Badge variant="outline" className={`text-[9px] font-black uppercase shrink-0 border ${getStatusBadgeClass(item.status)}`}>
                             {item.status}
                           </Badge>
                           <button 
@@ -572,8 +585,8 @@ export default function FurniturePage() {
                       <div className="flex items-center justify-between bg-slate-50 p-2 rounded-lg border border-slate-100">
                         <div className="flex items-center gap-2">
                           <span className="text-[10px] font-black text-slate-400 uppercase">QTD:</span>
-                          <span className={`font-black text-sm ${item.quantity === 0 ? 'text-red-500' : 'text-slate-700'}`}>
-                            {item.status === 'EMPRESTADO' ? 1 : item.quantity}
+                          <span className={`font-black text-sm ${item.quantity === 0 && !['EM_USO', 'EMPRESTADO'].includes(item.status) ? 'text-red-500' : 'text-slate-700'}`}>
+                            {['EM_USO', 'EMPRESTADO'].includes(item.status) ? 1 : item.quantity}
                           </span>
                         </div>
                         <Badge variant="outline" className="font-mono text-[9px] bg-white text-slate-500">
@@ -582,7 +595,7 @@ export default function FurniturePage() {
                       </div>
 
                       <div className="flex gap-2 pt-1 border-t border-slate-50">
-                        {item.quantity === 0 ? (
+                        {['EM_USO', 'EMPRESTADO'].includes(item.status) || item.quantity === 0 ? (
                            <Button 
                              variant="ghost" 
                              className="flex-1 h-9 text-[10px] font-bold text-emerald-600 bg-emerald-50 hover:bg-emerald-100"
@@ -714,7 +727,7 @@ export default function FurniturePage() {
         </DialogContent>
       </Dialog>
 
-      {/* 🔥 MODAL DE MANUTENÇÃO LIMPO 🔥 */}
+      {/* MODAL DE MANUTENÇÃO */}
       <Dialog open={!!maintenanceItem} onOpenChange={(open) => !open && setMaintenanceItem(null)}>
         <DialogContent className="max-w-md w-[95vw] rounded-2xl md:rounded-lg p-4 md:p-6">
           <DialogHeader>
